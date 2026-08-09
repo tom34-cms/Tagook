@@ -3,331 +3,40 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
-<meta name="theme-color" content="#FFFFFF" />
+<meta name="theme-color" content="#F2F2F3" />
+<meta name="color-scheme" content="light" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="태그북" />
+<meta name="apple-mobile-web-app-title" content="MY STYLING" />
 <meta name="format-detection" content="telephone=no" />
-<title>태그북 · TAGBOOK</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<title>MY STYLING · 태그북</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
-  :root{
-    --paper:#FFFFFF;
-    --paper-soft:#F5F5F7;
-    --white:#FFFFFF;
-    --ink:#1C1C1E;
-    --ink-soft:#6E6E73;
-    --ink-faint:#AEAEB2;
-    --navy:#1C1C1E;
-    --navy-deep:#000000;
-    --berry:#D0463B;
-    --brass:#B8874A;
-    --line:#E5E5EA;
-    --line-soft:#EFEFF1;
-    --radius:14px;
-    --shadow: 0 10px 24px -14px rgba(28,28,30,0.16);
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;padding:0;}
-  body{
-    font-family:'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-    background:var(--paper);
-    color:var(--ink);
-    min-height:100vh;
-    -webkit-font-smoothing:antialiased;
-  }
-  .serif{font-family:'Noto Serif KR', serif;}
-  button{font-family:inherit; cursor:pointer;}
-  input,select{font-family:inherit;}
-  ::selection{background:var(--brass); color:var(--white);}
-
-  /* ---------- layout ---------- */
-  .app{display:flex; min-height:100vh;}
-  .sidebar{
-    width:236px; flex-shrink:0; background:var(--white);
-    color:var(--ink); display:flex; flex-direction:column;
-    padding:28px 20px; position:sticky; top:0; height:100vh;
-    border-right:1px solid var(--line);
-  }
-  .main{flex:1; min-width:0; padding:36px 44px 80px;}
-
-  /* ---------- logo / tag shape ---------- */
-  .logo{display:flex; align-items:center; gap:12px; margin-bottom:6px;}
-  .logo-tag{
-    position:relative; width:34px; height:24px; flex-shrink:0;
-    background:var(--brass);
-    clip-path: polygon(30% 0%, 100% 0%, 100% 100%, 30% 100%, 0% 50%);
-  }
-  .logo-tag::after{
-    content:''; position:absolute; left:9px; top:50%; transform:translateY(-50%);
-    width:6px; height:6px; border-radius:50%; background:var(--white);
-  }
-  .logo-text{font-size:19px; font-weight:700; letter-spacing:0.5px;}
-  .logo-sub{font-size:10.5px; color:var(--ink-faint); letter-spacing:2.5px; margin:2px 0 0 46px; text-transform:uppercase;}
-
-  .nav{margin-top:40px; display:flex; flex-direction:column; gap:4px;}
-  .nav-item{
-    display:flex; align-items:center; gap:11px;
-    padding:11px 12px; border-radius:10px; border:none; background:transparent;
-    color:var(--ink-soft); font-size:14.5px; text-align:left; transition:background .15s, color .15s;
-  }
-  .nav-item:hover{background:var(--paper-soft); color:var(--ink);}
-  .nav-item.active{background:var(--paper-soft); color:var(--ink); font-weight:700; box-shadow:inset 3px 0 0 var(--brass);}
-  .nav-ico{width:16px; text-align:center; font-size:14px;}
-
-  .sidebar-foot{margin-top:auto; padding-top:20px; border-top:1px solid var(--line);}
-  .sidebar-foot-label{font-size:11px; color:var(--ink-faint); letter-spacing:1px;}
-  .sidebar-foot-count{font-size:13px; color:var(--ink); margin-top:4px;}
-
-  /* ---------- mobile bottom nav ---------- */
-  .bottom-nav{
-    display:none; position:fixed; left:0; right:0; bottom:0; z-index:40;
-    background:rgba(255,255,255,0.94); backdrop-filter:blur(10px);
-    border-top:1px solid var(--line);
-    padding:8px 10px calc(8px + env(safe-area-inset-bottom));
-    justify-content:space-around; align-items:center;
-  }
-  .bn-item{
-    display:flex; flex-direction:column; align-items:center; gap:3px;
-    border:none; background:transparent; color:var(--ink-faint);
-    padding:6px 18px; border-radius:12px; min-width:64px;
-  }
-  .bn-item.active{color:var(--ink); font-weight:700;}
-  .bn-ico{font-size:19px;}
-  .bn-label{font-size:10.5px;}
-
-  /* ---------- header ---------- */
-  .page-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:12px;}
-  .page-title{font-size:26px; font-weight:700; margin:0;}
-  .page-desc{color:var(--ink-soft); font-size:13.5px; margin-top:6px;}
-
-  .btn{
-    border:none; border-radius:9px; padding:10px 18px; font-size:13.5px; font-weight:600;
-    background:var(--navy); color:var(--white); transition:transform .12s, background .15s;
-  }
-  .btn:hover{background:var(--navy-deep);}
-  .btn:active{transform:scale(0.97);}
-  .btn-brass{background:var(--brass); color:#fff;}
-  .btn-brass:hover{background:#9c7238;}
-  .btn-ghost{background:transparent; border:1.4px solid var(--line); color:var(--ink);}
-  .btn-ghost:hover{background:var(--paper-soft);}
-  .btn-berry{background:var(--berry); color:#fff;}
-  .btn-berry:hover{background:#b23a30;}
-  .btn-sm{padding:7px 13px; font-size:12.5px; border-radius:8px;}
-
-  /* ---------- calendar ---------- */
-  .cal-head{display:flex; align-items:center; gap:14px; margin-bottom:18px;}
-  .cal-month{font-size:20px; font-weight:700; min-width:150px;}
-  .cal-nav-btn{
-    width:32px; height:32px; border-radius:50%; border:1.4px solid var(--line);
-    background:var(--white); font-size:14px; display:flex; align-items:center; justify-content:center;
-  }
-  .cal-nav-btn:hover{border-color:var(--brass); color:var(--brass);}
-  .cal-today-btn{margin-left:4px;}
-
-  .cal-grid{
-    background:var(--line-soft); border:1px solid var(--line);
-    border-radius:var(--radius); overflow:hidden;
-    display:grid; grid-template-columns:repeat(7,1fr); gap:1px;
-  }
-  .cal-dow{
-    background:var(--navy); color:#F2F2F3; text-align:center; font-size:11.5px;
-    padding:9px 0; font-weight:700; letter-spacing:1px;
-  }
-  .cal-dow.sun{color:#FF9F90;}
-  .cal-cell{
-    background:var(--white); aspect-ratio:1/1; position:relative; overflow:hidden;
-    cursor:pointer; transition:outline .1s;
-  }
-  .cal-cell.blank{background:var(--paper-soft); cursor:default;}
-  .cal-cell:hover:not(.blank){outline:2px solid var(--brass); outline-offset:-2px; z-index:1;}
-  .cal-daynum{
-    position:absolute; top:5px; left:6px; font-size:11px; font-weight:700; color:var(--ink-soft);
-    z-index:2; background:rgba(255,255,255,0.85); border-radius:5px; padding:0 3px;
-  }
-  .cal-cell.has-outfit .cal-daynum{color:#fff; background:rgba(28,28,30,0.5);}
-  .cal-thumb{width:100%; height:100%; object-fit:cover; display:block;}
-  .cal-today .cal-daynum{background:var(--berry); color:#fff;}
-  .cal-empty-plus{
-    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    color:var(--ink-faint); font-size:18px; opacity:0; transition:opacity .12s;
-  }
-  .cal-cell:hover .cal-empty-plus{opacity:1;}
-
-  /* ---------- cards / forms ---------- */
-  .panel{background:var(--white); border:1px solid var(--line); border-radius:var(--radius); padding:26px; box-shadow:var(--shadow);}
-  .field{margin-bottom:16px;}
-  .field label{display:block; font-size:12.5px; font-weight:700; color:var(--ink-soft); margin-bottom:6px; letter-spacing:.3px;}
-  .field input[type=text], .field input[type=date], .field input[type=number], .field select{
-    width:100%; padding:10px 12px; border:1.4px solid var(--line); border-radius:9px;
-    background:var(--paper-soft); font-size:13.5px; color:var(--ink);
-  }
-  .field input:focus, .field select:focus{outline:2px solid var(--brass); outline-offset:1px; background:var(--white);}
-  .row2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
-
-  .photo-drop{
-    border:1.6px dashed var(--line); border-radius:12px; background:var(--paper-soft);
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    padding:22px; text-align:center; cursor:pointer; position:relative; overflow:hidden; min-height:150px;
-  }
-  .photo-drop:hover{border-color:var(--brass);}
-  .photo-drop img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-  .photo-drop .hint{font-size:12px; color:var(--ink-faint); margin-top:6px;}
-  .photo-drop .ico{font-size:22px; color:var(--ink-faint);}
-  .photo-drop input{display:none;}
-
-  .upload-grid{display:grid; grid-template-columns:280px 1fr; gap:28px; align-items:start;}
-
-  /* item mini-card in draft */
-  .item-chip-list{display:flex; flex-wrap:wrap; gap:12px; margin-top:14px;}
-  .item-chip{
-    width:92px; position:relative; background:var(--paper-soft); border:1px solid var(--line);
-    border-radius:10px; padding:6px; text-align:center;
-  }
-  .item-chip img{width:100%; height:66px; object-fit:cover; border-radius:6px; background:#eee;}
-  .item-chip .cat{font-size:10px; color:var(--ink-faint); margin-top:4px;}
-  .item-chip .nm{font-size:11px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .item-chip .rm{
-    position:absolute; top:-6px; right:-6px; width:19px; height:19px; border-radius:50%;
-    background:var(--berry); color:#fff; border:none; font-size:11px; line-height:1;
-  }
-  .add-item-chip{
-    width:92px; height:96px; border:1.6px dashed var(--line); border-radius:10px;
-    display:flex; align-items:center; justify-content:center; background:var(--paper-soft);
-    color:var(--ink-faint); font-size:22px; flex-direction:column; gap:4px;
-  }
-  .add-item-chip:hover{border-color:var(--brass); color:var(--brass);}
-  .add-item-chip span{font-size:10.5px;}
-
-  /* ---------- outfit detail ---------- */
-  .detail-grid{display:grid; grid-template-columns:1fr 300px; gap:30px; align-items:start;}
-  .detail-photo-wrap{background:var(--white); border:1px solid var(--line); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow);}
-  .detail-photo-wrap img{width:100%; border-radius:9px; display:block; max-height:560px; object-fit:cover;}
-  .detail-meta{display:flex; justify-content:space-between; margin-top:14px; padding:0 4px;}
-  .detail-meta .d{font-size:15px; font-weight:700;}
-  .detail-meta .l{font-size:13px; color:var(--ink-soft);}
-
-  .side-panel{background:var(--white); border:1px solid var(--line); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); position:sticky; top:24px;}
-  .side-panel h3{margin:0 0 14px; font-size:14px; letter-spacing:.3px;}
-  .side-items{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
-  .side-item-thumb{
-    cursor:pointer; border:1px solid var(--line); border-radius:9px; overflow:hidden; background:var(--paper-soft);
-    transition:transform .12s, box-shadow .12s;
-  }
-  .side-item-thumb:hover{transform:translateY(-2px); box-shadow:var(--shadow);}
-  .side-item-thumb img{width:100%; height:78px; object-fit:cover; display:block;}
-  .side-item-thumb .cap{padding:6px 7px 8px;}
-  .side-item-thumb .cat{font-size:9.5px; color:var(--brass); font-weight:700; letter-spacing:.3px;}
-  .side-item-thumb .nm{font-size:11.5px; font-weight:700; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-
-  /* ---------- item detail (tag card) ---------- */
-  .tagcard{
-    background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow);
-    padding:0; overflow:hidden; max-width:420px;
-  }
-  .tagcard-photo{width:100%; height:260px; object-fit:cover; background:var(--paper-soft); display:block;}
-  .tagcard-body{padding:22px 24px 24px; position:relative;}
-  .tagcard-punch{
-    position:absolute; top:-13px; left:24px; width:26px; height:26px; border-radius:50%;
-    background:var(--paper); border:5px solid var(--white);
-  }
-  .tagcard-brand{font-size:11.5px; color:var(--brass); font-weight:700; letter-spacing:1.5px; text-transform:uppercase;}
-  .tagcard-name{font-size:20px; font-weight:700; margin:4px 0 14px; font-family:'Noto Serif KR', serif;}
-  .tagcard-row{display:flex; justify-content:space-between; padding:9px 0; border-top:1px dashed var(--line); font-size:13px;}
-  .tagcard-row:first-of-type{border-top:1px dashed var(--line);}
-  .tagcard-row .k{color:var(--ink-soft);}
-  .tagcard-row .v{font-weight:700;}
-  .tagcard-freq{
-    margin-top:14px; background:var(--paper-soft); border-radius:9px; padding:10px 12px;
-    font-size:12.5px; color:var(--ink-soft); display:flex; justify-content:space-between; align-items:center;
-  }
-  .tagcard-freq b{color:var(--navy); font-size:14px;}
-
-  /* ---------- gallery ---------- */
-  .gallery-tools{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:22px; align-items:center;}
-  .search-box{
-    display:flex; align-items:center; gap:8px; background:var(--white); border:1.4px solid var(--line);
-    border-radius:9px; padding:8px 12px; flex:1; min-width:220px;
-  }
-  .search-box input{border:none; background:transparent; outline:none; font-size:13.5px; width:100%;}
-  .search-box .ico{color:var(--ink-faint);}
-  .chip-select{
-    border:1.4px solid var(--line); background:var(--white); border-radius:9px; padding:8px 12px; font-size:13px; color:var(--ink);
-  }
-  .sort-tabs{display:flex; gap:6px; margin-left:auto; flex-wrap:wrap;}
-  .sort-tab{padding:7px 13px; border-radius:20px; border:1.4px solid var(--line); background:var(--white); font-size:12.5px; color:var(--ink-soft);}
-  .sort-tab.active{background:var(--navy); border-color:var(--navy); color:#fff; font-weight:700;}
-
-  .brand-groups{display:flex; flex-direction:column; gap:28px;}
-  .brand-group-head{display:flex; align-items:baseline; gap:9px; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--line);}
-  .brand-group-head .bg-name{font-size:16px; font-weight:700;}
-  .brand-group-head .bg-count{font-size:12px; color:var(--ink-faint);}
-
-  .item-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:16px;}
-  .item-card{
-    background:var(--white); border:1px solid var(--line); border-radius:12px; overflow:hidden; cursor:pointer;
-    transition:transform .12s, box-shadow .12s;
-  }
-  .item-card:hover{transform:translateY(-3px); box-shadow:var(--shadow);}
-  .item-card img{width:100%; height:130px; object-fit:cover; background:var(--paper-soft); display:block;}
-  .item-card .ic-body{padding:10px 11px 12px;}
-  .item-card .ic-cat{font-size:9.5px; color:var(--brass); font-weight:700; letter-spacing:.5px;}
-  .item-card .ic-name{font-size:12.5px; font-weight:700; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .item-card .ic-brand{font-size:11px; color:var(--ink-soft); margin-top:1px;}
-  .item-card .ic-freq{
-    margin-top:7px; font-size:10.5px; color:var(--navy); background:var(--paper-soft);
-    display:inline-block; padding:2px 7px; border-radius:20px; font-weight:700;
-  }
-
-  /* ---------- empty states ---------- */
-  .empty{
-    text-align:center; padding:70px 20px; color:var(--ink-faint);
-  }
-  .empty .big-tag{width:52px; height:38px; margin:0 auto 16px; background:var(--line-soft); clip-path: polygon(30% 0%, 100% 0%, 100% 100%, 30% 100%, 0% 50%); position:relative;}
-  .empty .big-tag::after{content:''; position:absolute; left:14px; top:50%; transform:translateY(-50%); width:9px; height:9px; border-radius:50%; background:var(--white);}
-  .empty p{font-size:13.5px; margin:0 0 16px;}
-
-  /* ---------- modal ---------- */
-  .modal-bg{
-    position:fixed; inset:0; background:rgba(28,28,30,0.5); display:flex; align-items:center; justify-content:center;
-    z-index:50; padding:24px; backdrop-filter:blur(2px);
-  }
-  .modal-close{
-    position:absolute; top:-14px; right:-14px; width:32px; height:32px; border-radius:50%;
-    background:var(--ink); color:#fff; border:3px solid var(--white); font-size:14px;
-  }
-  .modal-wrap{position:relative;}
-
-  .fade-note{font-size:11.5px; color:var(--ink-faint); text-align:center; margin-top:34px;}
-
-  /* ---------- mobile / iPhone·iPad ---------- */
-  @media (max-width: 860px){
-    .sidebar{display:none;}
-    .bottom-nav{display:flex;}
-    .app{flex-direction:column;}
-    .main{padding:20px 16px calc(88px + env(safe-area-inset-bottom));}
-    .upload-grid, .detail-grid{grid-template-columns:1fr;}
-    .side-panel{position:static;}
-    .page-title{font-size:22px;}
-    .sort-tabs{margin-left:0; width:100%;}
-    .gallery-tools{flex-direction:column; align-items:stretch;}
-    .chip-select{width:100%;}
-    /* prevent iOS auto-zoom on focus */
-    .field input[type=text], .field input[type=date], .field input[type=number],
-    .field select, .search-box input{font-size:16px;}
-    .cal-empty-plus{opacity:.32;}
-  }
+  :root{ color-scheme: light; }
+  html{ background-color:#F2F2F3; }
+  body{ font-family:'Inter','Noto Sans KR',sans-serif; background-color:#F2F2F3; color:#2D2B2A; }
+  .custom-scroll::-webkit-scrollbar{ display:none; }
+  .custom-scroll{ -ms-overflow-style:none; scrollbar-width:none; }
+  input[type=file]{ display:none; }
+  input[type=text], input[type=date], input[type=number], textarea, select{ font-size:16px; }
+  input[type=date]{ -webkit-appearance:none; appearance:none; }
+  .sheet-enter{ animation:sheetUp .22s ease-out; }
+  @keyframes sheetUp{ from{ transform:translateY(24px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+  .fade-enter{ animation:fadeIn .18s ease-out; }
+  @keyframes fadeIn{ from{ opacity:0;} to{ opacity:1;} }
 </style>
 </head>
-<body>
-<div class="app" id="app"></div>
+<body class="flex flex-col h-screen max-w-md mx-auto border-x border-gray-100/50 shadow-2xl relative overflow-hidden">
+<div id="app" class="contents"></div>
 
 <script>
-/* ============ FIREBASE (기기 간 연동용 — 아래 6개 값을 본인 프로젝트 값으로 교체) ============ */
+/* ============================================================
+   FIREBASE (기기 간 연동)
+   ============================================================ */
 const firebaseConfig = {
   apiKey: "AIzaSyDVuJu9oXiVpgiRUBznXi4hWYftvDTeOJA",
   authDomain: "tagbook-e40de.firebaseapp.com",
@@ -337,6 +46,7 @@ const firebaseConfig = {
   appId: "1:62814800892:web:aa666f0a3b76a4e2b94079"
 };
 let db = null;
+let outsideClickHandler = null;
 let firebaseReady = false;
 try{
   if(firebaseConfig.apiKey !== "YOUR_API_KEY" && typeof firebase !== 'undefined'){
@@ -346,57 +56,165 @@ try{
   }
 }catch(e){ firebaseReady = false; }
 
-/* ============ STATE ============ */
-const CATS = ['아우터','상의','하의','신발','액세서리','기타'];
-const CAT_ICON = {'상의':'👕','하의':'👖','아우터':'🧥','신발':'👟','액세서리':'⌚','기타':'✦'};
-const NAV_ITEMS = [
-  { key:'calendar', icon:'📅', label:'캘린더' },
-  { key:'gallery', icon:'🗂️', label:'아이템 갤러리' }
-];
+/* ============================================================
+   STATE
+   ============================================================ */
+const CAT_MAIN = ['신발','상의','아우터','하의','가방','모자','악세서리','기타'];
+const CATS = CAT_MAIN; // 구코드 호환용 별칭
+const CAT_ICON = {'신발':'👟','상의':'👕','아우터':'🧥','하의':'👖','가방':'👜','모자':'🧢','악세서리':'⌚','기타':'✦'};
+const CAT_SUB = {
+  '신발': ['스니커즈','로퍼','구두','부츠/워커','샌들/쪼리','뮬','스포츠화','패딩/퍼 신발','기타 신발'],
+  '상의': ['반소매 티셔츠','긴소매 티셔츠','스웨트/맨투맨','후드 티셔츠/후드집업','셔츠/블라우스(반소매셔츠)','니트/스웨터','피케/카라 티셔츠','민소매/슬리브리스','기타 상의'],
+  '아우터': ['자켓','슈트/블레이저','가디건','윈드브레이커','가죽/무스탕','코트','패딩','기타 아우터'],
+  '하의': ['청바지','조거팬츠','스웨트팬츠','코튼/치노팬츠','슬랙스','나일론/파라슈트','카고팬츠','반바지','기타 하의'],
+  '가방': ['토트백','숄더백','크로스백','에코백','미니백','백팩','보스턴/더플백','웨이스트백','클러치','기타 가방'],
+  '모자': ['볼캡','비니','버킷햇','트루퍼햇','베레모','바라클라바','기타 모자'],
+  '악세서리': ['시계','반지','목걸이','팔찌/발찌','귀걸이','아이웨어(안경/선글라스)','벨트','키링','스카프/머플러','장갑','넥타이','양말/타이즈','테크 액세서리','기타 잡화'],
+  '기타': ['기타']
+};
+// 카테고리별 사이즈 등록 필드 스키마. 빈 배열이면 구조화 사이즈 입력 없이 '노트'만 사용
+const SIZE_FIELDS = {
+  '신발': [
+    {key:'sizeLabel', label:'사이즈', type:'text'},
+    {key:'sizeFeel', label:'사이즈감', type:'select', options:['반사이즈 다운','정사이즈','반사이즈 업','1사이즈 업','1사이즈 이상']}
+  ],
+  '상의': [
+    {key:'sizeLabel', label:'사이즈', type:'text'},
+    {key:'totalLength', label:'총장', type:'number'},
+    {key:'shoulder', label:'어깨너비', type:'number'},
+    {key:'chest', label:'가슴단면', type:'number'},
+    {key:'sleeve', label:'소매길이', type:'number'}
+  ],
+  '아우터': [
+    {key:'sizeLabel', label:'사이즈', type:'text'},
+    {key:'totalLength', label:'총장', type:'number'},
+    {key:'shoulder', label:'어깨너비', type:'number'},
+    {key:'chest', label:'가슴단면', type:'number'},
+    {key:'sleeve', label:'소매길이', type:'number'}
+  ],
+  '하의': [
+    {key:'sizeLabel', label:'사이즈', type:'text'},
+    {key:'totalLength', label:'총장', type:'number'},
+    {key:'waist', label:'허리단면', type:'number'},
+    {key:'hip', label:'엉덩이단면', type:'number'},
+    {key:'thigh', label:'허벅지단면', type:'number'},
+    {key:'rise', label:'밑위', type:'number'},
+    {key:'hem', label:'밑단단면', type:'number'}
+  ],
+  '모자': [
+    {key:'sizeLabel', label:'사이즈', type:'text'},
+    {key:'headCirc', label:'머리둘레', type:'number'},
+    {key:'depth', label:'깊이', type:'number'},
+    {key:'brim', label:'챙길이', type:'number'}
+  ],
+  '가방': [],
+  '악세서리': [],
+  '기타': []
+};
+const SIZE_KEYS = ['sizeLabel','sizeFeel','totalLength','shoulder','chest','sleeve','waist','hip','thigh','rise','hem','headCirc','depth','brim'];
+// 사이즈 비교표에서 '사이즈' 헤더 옆에 작고 흐리게 (cm) 표기할 카테고리
+const CM_HINT_CATS = ['상의','아우터','하의','모자'];
+const MONTH_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const PIN_ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AACCbElEQVR4nO3debhcVZU3/u8+U52qukNu5gGSEMIYCBBmkFm0GQURgUdRbESgURka+lFb27dlsH39qa2CLaioCAhIaATCECHIYMIciMwzIUCmm9yppjPt3x95186pSgjIvTdVdev7eZ48Se6tJCc1nL322muvrbTWICIiotZi1fsCiIiIaPNjAEBERNSCGAAQERG1IAYARERELYgBABERUQtiAEBERNSCGAAQERG1IAYARERELYgBABERUQtiAEBERNSCGAAQERG1IAYARERELYgBABERUQtiAEBERNSCGAAQERG1IAYARERELYgBABERUQtiAEBERNSCGAAQERG1IAYARERELYgBABERUQtiAEBERNSCGAAQERG1IAYARERELYgBABERUQtiAEBERNSCGAAQERG1IAYARERELYgBABERUQtiAEBERNSCGAAQERG1IAYARERELYgBABERUQtiAEBERNSCGAAQERG1IAYARERELYgBABERUQtiAEBERNSCGAAQERG1IKfeF0DU7LTW0FrDsqwNvpYkCRzH+VCPF0opAECSJLAsC1pr8zX5O2sfI39X+vvyZzd13el/b2OUUkiSxFxv+t+Vf1v+rvT309f8fv+mPKb2Gjd1Pen/n/wgoo9GbeoGQUQfXXqATJIEcRzDdd2q74dhCNu2NxjIZDCNomiDwa42eJCvbez37zcIb2zQ/aABu/bxtf/X9PXJD8dxzPfk/2rbNqIoMv+PdOBQ+3fKc5G+Hg76REODAQDRIMRxvMEgDwCO48CyLERRBMuyzCzatm3zWBkA5WtptbN/rbX5u2XwdF3X/NsygGutUS6XUSgUdKlUwsDAAOI4RhiGKJfLKJfLqFQqCILA/H22bcPzPGQyGfi+D9/34boubNtGW1sbstks8vm88n3f/Bty35AgRillMh0S0KSDhyiKzPfl1/LnaoMb+T+nA4M4js1zIs8XgwGiwWEAQDTE0gNfGIZwHKdqoErPbNMDYxzH0FojDEMkSQLf980gWCwW0dPTo1etWoVXX30Vr7/+Ovr7+/HKK6+gv78f3d3d6O7uRm9vLwqFAkql0gbLD3JdtT/LtdX+DMAEMP8vCEBnZyfGjBmDMWPGoL29Hdtssw3a29sxY8YMzJw5E+PGjcOo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UqlUz8s2pOpfZva5XA4HHHAA/vrXv2LrrbdWEsyki/1kJwMHf6L6YgaAqMFprTEwMIA///nP+vTTT0c2m0Vvb2/V1kD5HKcbCCmlTPdBKc6THgJy5LB8LS3djz/998o2Pzm4SFL5EpRkMhl861vfwhe/+EWMHz9esac/UWPjp5OowSVJgra2Nhx99NF44oknsP/++5uKe+G6LjKZTNWAnU63x3G80c6C6R0GMrCne/LX/vn04C9838dBBx2Ee+65B6eddhrGjx9vWvwSUeNiBoCogaXXyeM4RhzH8DwPf/vb3/Q555yD559/3tQLbGwmD6wLIKTlsPy+9rHpbYUSBLiuWzXwSwYAgEn577zzzrjoootw8sknq3RgUBuAEFHjYQBA1ODK5TKUUshkMmbwll0AN910k77yyiuxaNEiZDIZhGGISqVi/qwM4hv7nKcDhI2RdsTybzmOg/b2dhQKBey+++44//zzcdxxxyk54lh6GhQKBXPyIRE1LgYARA1MBnPP81Aul5HNZk2rXZlxW5aFl19+Wf/85z/H1VdfDa01xo4dixUrVmx0Zi8kAJCZvczY0zUF2WwWjuOgUqkgl8vh2GOPxXnnnYddd91VdXd362w2q/L5fFWmQoIFHuhD1NgYABA1ESnikxPzpFsgAFMU+OSTT+qbb74ZDz74IB599FEz0EvNgCwXpE/fk6LAdBpfa40ZM2Zg//33x+c+9zkccMABKpvNmqJCuZ70Wr/8vdKmOF2nQESNhQEAUQOTmXulUkEYhmhra0Mcx2bgry20k4yBbCdcuXKlXrZsGZ5++mm88MILeOutt7By5UoEQYAwDBFFETzPQyaTwYQJEzB9+nRsu+22mD17NiZPnoypU6cqrbX5e+UEv/S/LbUJsnvA8zzO/omaAAMAoga2sUFeBlzXdU3nQNnyJ42CZBYu+/QrlQp836+aucuxw+mBOggCc7iPZASA6h0BknGwbRuVSsUEG1L5n25qxCCAqHExACAiImpB3KhLRETUghgAEBERtSAGAERERC2IAQAREVELYgBARETUghgAEBERtSAGAERERC2IAQAREVELYgBARETUghgAEBERtSAGAERERC2IAQAREVELYgBARETUghgAEBERtSAGAERERC2IAQAREVELYgBARETUghgAEBERtSAGAERERC2IAQAREVELYgBARETUghgAEBERtSAGAERERC2IAQAREVELYgBARETUghgAEBERtSAGAERERC2IAQAREVELYgBARETUghgAEBERtSAGAERERC2IAQAREVELYgBARETUghgAEBERtSAGAERERC2IAQAREVELYgBARETUghgAEBERtSAGAERERC3o/wfDf21uFCmaEwAAAABJRU5ErkJggg==';
 
 const state = {
-  view: 'calendar', // calendar | upload | outfitDetail | gallery
-  outfits: [],
-  items: [],
+  tab: 'calendar',            // calendar | gallery | search
   calMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-  selectedOutfitId: null,
-  selectedItemId: null,      // for modal
-  draft: null,               // {date, location, photo, itemIds:[]}
-  addingItem: null,          // {mode:'new'|'pick', category} while composing
+  outfits: [],                 // {id,date,location,photo,itemIds:[]}
+  items: [],                   // {id,category,photo,brand,name,modelNo,purchaseDate,price,owned,sizeNote}
+
+  // search tab
+  searchFilter: '전체',        // 전체 | 카테고리 | 브랜드 | 착장 빈도 | 사이즈 비교
+  searchCat: 'all',
+  searchSort: 'recent',        // recent | purchase | price
+  searchSortDir: 'desc',       // asc | desc (구매일/구매가 정렬 방향, 누를 때마다 토글)
+  compareCat: null,            // 사이즈 비교에서 선택된 대분류
+  compareSubCat: null,          // 사이즈 비교에서 선택된 소분류 (null이면 전체)
+
+  // modal stack
+  coordiDetailId: null,
+  coordiFilterCat: 'all',      // 코디 상세에서 아이템 목록 카테고리 필터
+  itemBriefId: null,
+  itemFullId: null,
+  categoryPopupOpen: false,
+  sizePopupOpen: false,
+  monthPickerOpen: false,
+  confirmDialog: null,          // {message, onYes}
+
+  // outfit register / item register flows
+  registerDraft: null,         // {date,location,photo,itemIds:[]}
+  itemFlow: null,               // {mode:'choice'|'pick'|'new', form?:{...}}
   pickerSearch: '',
-  galleryQuery: '',
-  galleryCat: 'all',
-  gallerySort: 'freq',       // freq | recent | purchase
-  prefDate: null,
-  storageMode: 'none',       // 'firebase' | 'cloud' | 'local' | 'none'
+
+  storageMode: 'none',
   syncCode: null
 };
 try{ state.syncCode = localStorage.getItem('tagbook-sync-code'); }catch(e){ state.syncCode = null; }
 
-function uid(p){ return p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
-function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
-function fmtDate(s){
-  if(!s) return '';
-  const [y,m,d] = s.split('-');
-  return `${y}.${m}.${d}`;
+function askConfirm(message, onYes){
+  // 네이티브 confirm()은 샌드박스 iframe(아티팩트 미리보기 등)에서 조용히 막혀
+  // '삭제'가 안 먹는 것처럼 보이는 원인이 될 수 있어, 자체 모달로 대체
+  state.confirmDialog = { message, onYes };
+  render();
 }
-function fmtWon(n){
-  if(n === '' || n === null || n === undefined || isNaN(n)) return '-';
-  return Number(n).toLocaleString('ko-KR') + '원';
-}
-function outfitsUsingItem(itemId){
-  return state.outfits.filter(o => o.itemIds.includes(itemId)).length;
-}
-function readFileAsDataURL(file){
-  return new Promise((res)=>{
-    const r = new FileReader();
-    r.onload = ()=>res(r.result);
-    r.readAsDataURL(file);
+function renderConfirmModal(){
+  const d = state.confirmDialog;
+  const bg = document.createElement('div');
+  bg.className = 'fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-6 fade-enter';
+  bg.innerHTML = `
+    <div class="bg-white rounded-2xl p-5 w-full max-w-xs space-y-4 shadow-xl">
+      <p class="text-sm text-gray-800 leading-relaxed">${d.message}</p>
+      <div class="flex gap-2">
+        <button id="confirm-cancel" class="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold">취소</button>
+        <button id="confirm-ok" class="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold">삭제</button>
+      </div>
+    </div>
+  `;
+  bg.querySelector('#confirm-cancel').addEventListener('click', ()=>{ state.confirmDialog = null; render(); });
+  bg.querySelector('#confirm-ok').addEventListener('click', ()=>{
+    const fn = d.onYes;
+    state.confirmDialog = null;
+    fn && fn();
   });
+  return bg;
 }
-/* ============ SAVE / LOAD (persistent storage) ============ */
+function uid(p){ return p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function fmtDate(s){ if(!s) return ''; const [y,m,d]=s.split('-'); return `${y}.${m}.${d}`; }
+function fmtWon(n){ if(n===''||n===null||n===undefined||isNaN(n)) return '-'; return Number(n).toLocaleString('ko-KR')+'원'; }
+function outfitsUsingItem(id){ return state.outfits.filter(o=>o.itemIds.includes(id)).length; }
+// 노트("사이즈: L\n어깨: 51\n...")를 key/value 쌍으로 파싱
+function parseSizeNote(note){
+  const pairs = {};
+  if(!note) return pairs;
+  note.split('\n').forEach(line=>{
+    const m = line.match(/^\s*([^:：]+)[:：]\s*(.+?)\s*$/);
+    if(m) pairs[m[1].trim()] = m[2].trim();
+  });
+  return pairs;
+}
+function readFileAsDataURL(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(file); }); }
+// 새 아이템 등록 폼의 빈 초안 생성 (모든 사이즈 필드를 미리 빈 값으로 포함)
+function blankItemForm(cat){
+  const category = cat || CAT_MAIN[0];
+  const base = { category, subCategory: (CAT_SUB[category]||[])[0] || '', catExpand: null, photo:null, brand:'', name:'', modelNo:'', purchaseDate:'', price:'', sizeNote:'' };
+  SIZE_KEYS.forEach(k=>{ base[k] = ''; });
+  return base;
+}
+// 기존 아이템 → 수정 폼 초안으로 변환
+function itemToForm(it){
+  const base = blankItemForm(it.category);
+  base.subCategory = it.subCategory || (CAT_SUB[it.category]||[])[0] || '';
+  base.photo = it.photo; base.brand = it.brand||''; base.name = it.name||''; base.modelNo = it.modelNo||'';
+  base.purchaseDate = it.purchaseDate||''; base.price = it.price||''; base.sizeNote = it.sizeNote||'';
+  SIZE_KEYS.forEach(k=>{ base[k] = it[k] || ''; });
+  return base;
+}
+
+/* ============================================================
+   SAVE / LOAD
+   ============================================================ */
 async function loadState(){
-  // 0) Firebase 연동이 설정된 경우 — 기기 간 진짜 동기화
   if(firebaseReady && state.syncCode){
     state.storageMode = 'firebase';
     try{
@@ -406,12 +224,9 @@ async function loadState(){
         state.outfits = Array.isArray(data.outfits) ? data.outfits : [];
         state.items = Array.isArray(data.items) ? data.items : [];
       }
-    }catch(e){
-      console.error('불러오기 실패:', e);
-    }
+    }catch(e){ console.error('불러오기 실패:', e); }
     return;
   }
-  // 1) 클로드 아티팩트 안에서 열린 경우 — 계정 기준 클라우드 저장
   if(typeof window.storage !== 'undefined'){
     state.storageMode = 'cloud';
     try{
@@ -421,12 +236,9 @@ async function loadState(){
         state.outfits = Array.isArray(parsed.outfits) ? parsed.outfits : [];
         state.items = Array.isArray(parsed.items) ? parsed.items : [];
       }
-    }catch(e){
-      // 저장된 데이터가 아직 없는 경우
-    }
+    }catch(e){ /* 저장된 데이터 없음 */ }
     return;
   }
-  // 2) 다운로드해서 파일로 직접 여는 경우 — 이 기기의 브라우저에 저장 (기기별로 따로 저장됨)
   try{
     const raw = localStorage.getItem('tagbook-data');
     if(raw){
@@ -435,124 +247,226 @@ async function loadState(){
       state.items = Array.isArray(parsed.items) ? parsed.items : [];
     }
     state.storageMode = 'local';
-  }catch(e){
-    state.storageMode = 'none';
-  }
+  }catch(e){ state.storageMode = 'none'; }
 }
 async function saveState(){
   if(state.storageMode === 'firebase'){
-    try{
-      await db.collection('tagbook').doc(state.syncCode).set({ outfits: state.outfits, items: state.items, updatedAt: Date.now() });
-    }catch(e){
-      console.error('저장 실패:', e);
-    }
+    try{ await db.collection('tagbook').doc(state.syncCode).set({ outfits: state.outfits, items: state.items, updatedAt: Date.now() }); }
+    catch(e){ console.error('저장 실패:', e); }
     return;
   }
   if(state.storageMode === 'cloud'){
-    try{
-      await window.storage.set('tagbook-data', JSON.stringify({ outfits: state.outfits, items: state.items }), false);
-    }catch(e){
-      console.error('저장 실패:', e);
-    }
+    try{ await window.storage.set('tagbook-data', JSON.stringify({ outfits: state.outfits, items: state.items }), false); }
+    catch(e){ console.error('저장 실패:', e); }
   } else if(state.storageMode === 'local'){
-    try{
-      localStorage.setItem('tagbook-data', JSON.stringify({ outfits: state.outfits, items: state.items }));
-    }catch(e){
-      console.error('저장 실패:', e);
-    }
+    try{ localStorage.setItem('tagbook-data', JSON.stringify({ outfits: state.outfits, items: state.items })); }
+    catch(e){ console.error('저장 실패:', e); }
   }
 }
 
-function sortItems(list, sortKey){
+function sortItems(list, key, dir){
   const arr = list.slice();
-  if(sortKey === 'freq'){
-    arr.sort((a,b)=> outfitsUsingItem(b.id) - outfitsUsingItem(a.id));
-  } else if(sortKey === 'purchase'){
-    arr.sort((a,b)=>{
-      if(!a.purchaseDate && !b.purchaseDate) return 0;
-      if(!a.purchaseDate) return 1;
-      if(!b.purchaseDate) return -1;
-      return b.purchaseDate.localeCompare(a.purchaseDate);
-    });
-  } else { // recent (registered)
-    arr.sort((a,b)=> (b.id > a.id ? 1 : -1));
-  }
+  const mul = dir === 'asc' ? 1 : -1;
+  if(key === 'freq') arr.sort((a,b)=> outfitsUsingItem(b.id) - outfitsUsingItem(a.id));
+  else if(key === 'purchase') arr.sort((a,b)=>{
+    if(!a.purchaseDate && !b.purchaseDate) return 0;
+    if(!a.purchaseDate) return 1;
+    if(!b.purchaseDate) return -1;
+    return a.purchaseDate.localeCompare(b.purchaseDate) * mul;
+  });
+  else if(key === 'price') arr.sort((a,b)=> ((Number(a.price)||0) - (Number(b.price)||0)) * mul);
+  else arr.sort((a,b)=> (b.id > a.id ? 1 : -1)); // recent (registered)
   return arr;
 }
 
-/* ============ RENDER ROOT ============ */
+// 사이즈 비교표 정렬: 옷 사이즈는 XS~XXXL 순서로, 신발은 사이즈 라벨 속 괄호 안 숫자(예: 'UK 8(270)' → 270, 한국 mm 사이즈 기준)로 오름차순
+const SIZE_LETTER_ORDER = ['XXS','XS','S','M','L','XL','XXL','2XL','XXXL','3XL','4XL','5XL'];
+function sizeSortKey(it, main){
+  const label = (it.sizeLabel||'').trim();
+  if(!label) return null;
+  if(main === '신발'){
+    const paren = label.match(/\(([\d.]+)\)/);
+    if(paren) return parseFloat(paren[1]);
+    const num = label.match(/([\d.]+)/);
+    if(num) return parseFloat(num[1]);
+    return null;
+  }
+  const upper = label.toUpperCase().replace(/\s/g,'');
+  const idx = SIZE_LETTER_ORDER.indexOf(upper);
+  if(idx !== -1) return idx;
+  const num = label.match(/([\d.]+)/);
+  if(num) return parseFloat(num[1]);
+  return null;
+}
+function sortBySize(list, main){
+  return list.slice().sort((a,b)=>{
+    const ka = sizeSortKey(a, main);
+    const kb = sizeSortKey(b, main);
+    if(ka===null && kb===null) return 0;
+    if(ka===null) return 1;
+    if(kb===null) return -1;
+    return ka - kb;
+  });
+}
+
+/* ============================================================
+   ROOT RENDER
+   ============================================================ */
 function render(){
   const app = document.getElementById('app');
   app.innerHTML = '';
-  app.appendChild(renderSidebar());
-  const main = document.createElement('div');
-  main.className = 'main';
-  if(state.view === 'calendar') main.appendChild(renderCalendarView());
-  else if(state.view === 'upload') main.appendChild(renderUploadView());
-  else if(state.view === 'outfitDetail') main.appendChild(renderOutfitDetailView());
-  else if(state.view === 'gallery') main.appendChild(renderGalleryView());
-  app.appendChild(main);
-  app.appendChild(renderBottomNav());
 
-  if(state.selectedItemId){
-    app.appendChild(renderItemModal());
+  if(outsideClickHandler){ document.removeEventListener('click', outsideClickHandler); outsideClickHandler = null; }
+
+  if(firebaseReady && !state.syncCode){
+    app.appendChild(renderSyncSetup());
+    return;
   }
-  if(state.addingItem){
-    app.appendChild(renderAddItemModal());
+
+  const shell = document.createElement('div');
+  shell.className = 'flex flex-col h-screen w-full relative';
+  shell.appendChild(renderHeader());
+  shell.appendChild(renderMain());
+  shell.appendChild(renderFAB());
+  shell.appendChild(renderBottomNav());
+  app.appendChild(shell);
+
+  if(state.registerDraft) app.appendChild(renderOutfitRegisterView());
+  if(state.itemFlow) app.appendChild(renderItemFlowModal());
+  if(state.coordiDetailId) app.appendChild(renderCoordiDetailModal());
+  if(state.itemBriefId) app.appendChild(renderItemBriefSheet());
+  if(state.itemFullId) app.appendChild(renderItemFullModal());
+  if(state.categoryPopupOpen) app.appendChild(renderCategoryPopup());
+  if(state.sizePopupOpen) app.appendChild(renderSizePopup());
+  if(state.confirmDialog) app.appendChild(renderConfirmModal());
+
+  if(state.monthPickerOpen){
+    setTimeout(()=>{
+      outsideClickHandler = ()=>{
+        state.monthPickerOpen = false;
+        outsideClickHandler = null;
+        render();
+      };
+      document.addEventListener('click', outsideClickHandler, { once:true });
+    }, 0);
   }
 }
 
-/* ============ SIDEBAR (desktop) ============ */
-function renderSidebar(){
-  const el = document.createElement('div');
-  el.className = 'sidebar';
-  el.innerHTML = `
-    <div class="logo">
-      <div class="logo-tag"></div>
-      <div class="logo-text serif">태그북</div>
+/* ============================================================
+   HEADER
+   ============================================================ */
+function renderHeader(){
+  const header = document.createElement('header');
+  header.className = 'px-4 py-3 flex justify-between items-center bg-white/80 backdrop-blur border-b border-gray-200 z-20 relative';
+
+  const left = document.createElement('div');
+  if(state.tab === 'calendar'){
+    left.className = 'relative flex items-center gap-1.5 cursor-pointer select-none';
+    left.innerHTML = `
+      <h1 class="text-2xl font-extrabold tracking-tight text-black">${MONTH_EN[state.calMonth.getMonth()]}</h1>
+      <svg class="w-4 h-4 text-gray-400 mt-0.5 transition-transform ${state.monthPickerOpen?'rotate-180':''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+    `;
+    left.addEventListener('click', ()=>{ state.monthPickerOpen = !state.monthPickerOpen; render(); });
+  } else if(state.tab === 'gallery'){
+    left.className = 'flex items-center';
+    left.innerHTML = `<h1 class="text-2xl font-extrabold tracking-tight text-black">LIFE LOG</h1>`;
+  } else {
+    left.className = 'flex items-center';
+    left.innerHTML = `<h1 class="text-2xl font-extrabold tracking-tight text-black">ITEM</h1>`;
+  }
+  header.appendChild(left);
+
+  const right = document.createElement('div');
+  if(state.tab === 'search'){
+    right.id = 'filter-dropdown-container';
+    right.className = 'relative';
+    right.innerHTML = `
+      <button id="filter-btn" class="flex items-center gap-1 text-sm font-semibold px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-gray-800">
+        <span id="selected-filter-label">${state.searchFilter}</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div id="filter-menu" class="hidden absolute right-0 mt-2 w-40 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-30">
+        <button data-filter="전체" class="filter-opt w-full text-left px-4 py-2 text-sm hover:bg-gray-50">전체</button>
+        <button id="open-cat-popup" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex justify-between items-center">카테고리 <span>›</span></button>
+        <button data-filter="브랜드" class="filter-opt w-full text-left px-4 py-2 text-sm hover:bg-gray-50">브랜드</button>
+        <button data-filter="착장 빈도" class="filter-opt w-full text-left px-4 py-2 text-sm hover:bg-gray-50">착장 빈도</button>
+        <button id="open-size-popup" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex justify-between items-center">사이즈 비교 <span>›</span></button>
+      </div>
+    `;
+  } else if(state.tab === 'calendar'){
+    right.className = 'text-xs font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full';
+    right.textContent = String(state.calMonth.getFullYear());
+  }
+  header.appendChild(right);
+
+  if(state.monthPickerOpen && state.tab === 'calendar'){
+    header.appendChild(renderMonthPickerPanel());
+  }
+
+  if(state.tab === 'search'){
+    right.querySelector('#filter-btn').addEventListener('click', ()=>{
+      right.querySelector('#filter-menu').classList.toggle('hidden');
+    });
+    right.querySelectorAll('.filter-opt').forEach(b=>{
+      b.addEventListener('click', ()=>{ state.searchFilter = b.dataset.filter; render(); });
+    });
+    const openCat = right.querySelector('#open-cat-popup');
+    if(openCat) openCat.addEventListener('click', ()=>{ state.categoryPopupOpen = true; render(); });
+    const openSize = right.querySelector('#open-size-popup');
+    if(openSize) openSize.addEventListener('click', ()=>{ state.sizePopupOpen = true; render(); });
+  }
+  return header;
+}
+
+/* ---------- 월 선택 패널 (헤더 드롭다운) ---------- */
+function renderMonthPickerPanel(){
+  const panel = document.createElement('div');
+  panel.className = 'absolute left-4 top-full mt-1 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-3 z-30 fade-enter';
+  const y = state.calMonth.getFullYear();
+  const curM = state.calMonth.getMonth();
+  panel.innerHTML = `
+    <div class="flex items-center justify-between mb-2 px-1">
+      <button id="yr-prev" class="w-7 h-7 rounded-full hover:bg-gray-100 text-gray-500 text-sm">‹</button>
+      <span class="text-sm font-bold text-gray-800">${y}</span>
+      <button id="yr-next" class="w-7 h-7 rounded-full hover:bg-gray-100 text-gray-500 text-sm">›</button>
     </div>
-    <div class="logo-sub">TAGBOOK · WARDROBE LOG</div>
-    <div class="nav">
-      ${NAV_ITEMS.map(n=>`<button class="nav-item ${state.view===n.key?'active':''}" data-nav="${n.key}"><span class="nav-ico">${n.icon}</span> ${n.label}</button>`).join('')}
-    </div>
-    <div class="sidebar-foot">
-      <div class="sidebar-foot-label">기록된 코디</div>
-      <div class="sidebar-foot-count">${state.outfits.length}개 · 아이템 ${state.items.length}개</div>
-    </div>
+    <div class="grid grid-cols-4 gap-1.5" id="mo-grid"></div>
   `;
-  el.querySelectorAll('[data-nav]').forEach(b=>{
+  const grid = panel.querySelector('#mo-grid');
+  MONTH_EN.forEach((name,i)=>{
+    const b = document.createElement('button');
+    b.className = 'py-1.5 rounded-lg text-xs font-semibold ' + (i===curM ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100');
+    b.textContent = name.slice(0,3);
     b.addEventListener('click', ()=>{
-      state.view = b.dataset.nav;
-      state.prefDate = null;
+      state.calMonth = new Date(y, i, 1);
+      state.monthPickerOpen = false;
       render();
     });
+    grid.appendChild(b);
   });
-  return el;
+  panel.querySelector('#yr-prev').addEventListener('click', (e)=>{ e.stopPropagation(); state.calMonth = new Date(y-1, curM, 1); render(); });
+  panel.querySelector('#yr-next').addEventListener('click', (e)=>{ e.stopPropagation(); state.calMonth = new Date(y+1, curM, 1); render(); });
+  panel.addEventListener('click', e=>e.stopPropagation());
+  return panel;
 }
 
-/* ============ BOTTOM NAV (mobile / iPhone·iPad) ============ */
-function renderBottomNav(){
-  const el = document.createElement('div');
-  el.className = 'bottom-nav';
-  el.innerHTML = NAV_ITEMS.map(n=>`
-    <button class="bn-item ${state.view===n.key?'active':''}" data-nav="${n.key}">
-      <span class="bn-ico">${n.icon}</span>
-      <span class="bn-label">${n.label}</span>
-    </button>
-  `).join('');
-  el.querySelectorAll('[data-nav]').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      state.view = b.dataset.nav;
-      state.prefDate = null;
-      render();
-    });
-  });
-  return el;
+/* ============================================================
+   MAIN (탭별 콘텐츠)
+   ============================================================ */
+function renderMain(){
+  const main = document.createElement('main');
+  main.className = 'flex-1 overflow-y-auto custom-scroll p-4 pb-24';
+  if(state.tab === 'calendar') main.appendChild(renderCalendarTab());
+  else if(state.tab === 'gallery') main.appendChild(renderGalleryTab());
+  else main.appendChild(renderSearchTab());
+  return main;
 }
 
-/* ============ CALENDAR VIEW ============ */
-function renderCalendarView(){
-  const wrap = document.createElement('div');
+/* ---------- CALENDAR TAB ---------- */
+function renderCalendarTab(){
+  const wrap = document.createElement('section');
+  wrap.className = 'space-y-3 -m-4 p-4 pt-3';
+
   const y = state.calMonth.getFullYear();
   const m = state.calMonth.getMonth();
   const first = new Date(y,m,1);
@@ -560,149 +474,708 @@ function renderCalendarView(){
   const daysInMonth = new Date(y,m+1,0).getDate();
   const todayS = todayStr();
 
-  const head = document.createElement('div');
-  head.className = 'page-head';
-  head.innerHTML = `
-    <div>
-      <h1 class="page-title serif">캘린더</h1>
-      <div class="page-desc">날짜를 누르면 그날의 코디를 보거나 새로 기록할 수 있어요</div>
-    </div>
-    <button class="btn btn-brass" id="quick-add">+ 오늘 코디 등록</button>
-  `;
-  wrap.appendChild(head);
+  const swipeZone = document.createElement('div');
 
-  const calHead = document.createElement('div');
-  calHead.className = 'cal-head';
-  calHead.innerHTML = `
-    <button class="cal-nav-btn" id="prev-m">‹</button>
-    <div class="cal-month serif">${y}년 ${m+1}월</div>
-    <button class="cal-nav-btn" id="next-m">›</button>
-    <button class="btn btn-ghost btn-sm cal-today-btn" id="today-btn">오늘</button>
-  `;
-  wrap.appendChild(calHead);
+  const table = document.createElement('div');
+  table.className = 'bg-gray-200 rounded-2xl overflow-hidden';
+
+  const dow = document.createElement('div');
+  dow.className = 'grid grid-cols-7 gap-px';
+  dow.innerHTML = ['SUN','MON','TUE','WED','THU','FRI','SAT'].map(d=>`<div class="text-center text-[10px] font-bold text-gray-400 bg-[#F5F5F6] py-2">${d}</div>`).join('');
+  table.appendChild(dow);
 
   const grid = document.createElement('div');
-  grid.className = 'cal-grid';
-  ['일','월','화','수','목','금','토'].forEach((d,i)=>{
-    const dow = document.createElement('div');
-    dow.className = 'cal-dow' + (i===0?' sun':'');
-    dow.textContent = d;
-    grid.appendChild(dow);
-  });
+  grid.className = 'grid grid-cols-7 gap-px';
   for(let i=0;i<startDow;i++){
     const c = document.createElement('div');
-    c.className = 'cal-cell blank';
+    c.className = 'h-16 bg-[#FAFAFA]';
     grid.appendChild(c);
   }
   for(let d=1; d<=daysInMonth; d++){
     const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const outfit = state.outfits.find(o=>o.date===dateStr);
     const cell = document.createElement('div');
-    cell.className = 'cal-cell' + (outfit?' has-outfit':'') + (dateStr===todayS?' cal-today':'');
+    const isToday = dateStr===todayS;
+    cell.className = 'h-16 cursor-pointer relative overflow-hidden group ' + (outfit ? 'bg-gray-300' : 'bg-[#FAFAFA] hover:bg-gray-100');
     if(outfit){
-      cell.innerHTML = `<img class="cal-thumb" src="${outfit.photo}" /><div class="cal-daynum">${d}</div>`;
-      cell.addEventListener('click', ()=>{ state.selectedOutfitId = outfit.id; state.view='outfitDetail'; render(); });
+      cell.innerHTML = `
+        <span class="text-[11px] font-semibold text-white absolute top-1 left-1.5 z-10" style="text-shadow:0 1px 3px rgba(0,0,0,.7);">${d}</span>
+        <img src="${outfit.photo}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform" />
+      `;
+      cell.addEventListener('click', ()=>{ state.coordiDetailId = outfit.id; render(); });
     } else {
-      cell.innerHTML = `<div class="cal-daynum">${d}</div><div class="cal-empty-plus">+</div>`;
+      cell.innerHTML = `
+        <span class="text-[11px] font-semibold text-black absolute top-1 left-1.5 ${isToday?'w-4 h-4 flex items-center justify-center rounded-full bg-black text-white !text-[10px]':''}">${d}</span>
+        <span class="absolute inset-0 flex items-center justify-center text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity text-base">+</span>
+      `;
       cell.addEventListener('click', ()=>{
-        state.prefDate = dateStr;
-        state.draft = { date: dateStr, location:'', photo:null, itemIds:[] };
-        state.view='upload'; render();
+        state.registerDraft = { date: dateStr, location:'', photo:null, itemIds:[] };
+        render();
       });
     }
     grid.appendChild(cell);
   }
-  wrap.appendChild(grid);
-  wrap.appendChild(Object.assign(document.createElement('div'),{className:'fade-note', textContent:
+  table.appendChild(grid);
+  swipeZone.appendChild(table);
+  wrap.appendChild(swipeZone);
+
+  const note = document.createElement('p');
+  note.className = 'text-[11px] text-gray-400 text-center pt-2';
+  note.textContent =
     state.storageMode === 'firebase' ? `🔗 "${state.syncCode}" 코드로 기기 간 연동 중이에요` :
     state.storageMode === 'cloud' ? '☁️ 코디와 아이템은 자동으로 저장돼요' :
     state.storageMode === 'local' ? '📱 이 기기 브라우저에 저장돼요 (다른 기기와는 공유되지 않아요)' :
-    '※ 지금은 저장이 지원되지 않는 환경이라 새로고침하면 초기화돼요'
-  }));
+    '※ 지금은 저장이 지원되지 않는 환경이라 새로고침하면 초기화돼요';
+  wrap.appendChild(note);
 
-  head.querySelector('#quick-add').addEventListener('click', ()=>{
-    state.prefDate = todayS;
-    state.draft = { date: todayS, location:'', photo:null, itemIds:[] };
-    state.view='upload'; render();
-  });
-  calHead.querySelector('#prev-m').addEventListener('click', ()=>{ state.calMonth = new Date(y,m-1,1); render(); });
-  calHead.querySelector('#next-m').addEventListener('click', ()=>{ state.calMonth = new Date(y,m+1,1); render(); });
-  calHead.querySelector('#today-btn').addEventListener('click', ()=>{ state.calMonth = new Date(new Date().getFullYear(), new Date().getMonth(),1); render(); });
+  // 스와이프로 월 이동
+  let tsX=0, tsY=0;
+  swipeZone.addEventListener('touchstart', e=>{ tsX = e.touches[0].clientX; tsY = e.touches[0].clientY; }, { passive:true });
+  swipeZone.addEventListener('touchend', e=>{
+    const dx = e.changedTouches[0].clientX - tsX;
+    const dy = e.changedTouches[0].clientY - tsY;
+    if(Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5){
+      state.calMonth = new Date(y, dx < 0 ? m+1 : m-1, 1);
+      render();
+    }
+  }, { passive:true });
 
   return wrap;
 }
 
-/* ============ UPLOAD VIEW ============ */
-function renderUploadView(){
-  if(!state.draft) state.draft = { date: todayStr(), location:'', photo:null, itemIds:[] };
-  const d = state.draft;
-  const wrap = document.createElement('div');
+/* ---------- GALLERY TAB (최신 코디 모아보기) ---------- */
+function renderGalleryTab(){
+  const wrap = document.createElement('section');
+  wrap.className = 'space-y-4';
 
-  const head = document.createElement('div');
-  head.className = 'page-head';
-  head.innerHTML = `
-    <div>
-      <h1 class="page-title serif">코디 등록</h1>
-      <div class="page-desc">사진과 날짜, 장소를 기록하고 그날 입은 아이템을 하나씩 추가하세요</div>
-    </div>
-  `;
-  wrap.appendChild(head);
+  const sorted = state.outfits.slice().sort((a,b)=> b.date.localeCompare(a.date));
+  if(sorted.length===0){
+    const empty = document.createElement('div');
+    empty.className = 'text-center py-20 text-gray-700/60 text-sm';
+    empty.textContent = '아직 등록된 코디가 없어요. 캘린더에서 날짜를 눌러 첫 코디를 기록해보세요.';
+    wrap.appendChild(empty);
+    return wrap;
+  }
 
   const grid = document.createElement('div');
-  grid.className = 'upload-grid';
-
-  // left: photo
-  const left = document.createElement('div');
-  left.innerHTML = `
-    <div class="photo-drop" id="outfit-photo-drop">
-      ${d.photo ? `<img src="${d.photo}"/>` : `<div class="ico">📷</div><div>코디 전체 사진</div><div class="hint">클릭해서 업로드</div>`}
-      <input type="file" accept="image/*" id="outfit-photo-input"/>
-    </div>
-  `;
-  grid.appendChild(left);
-
-  // right: form
-  const right = document.createElement('div');
-  const panel = document.createElement('div');
-  panel.className = 'panel';
-  panel.innerHTML = `
-    <div class="row2">
-      <div class="field">
-        <label>날짜</label>
-        <input type="date" id="f-date" value="${d.date}" />
-      </div>
-      <div class="field">
-        <label>지역</label>
-        <input type="text" id="f-loc" placeholder="예: 성수동, 서울" value="${d.location}" />
-      </div>
-    </div>
-    <div class="field">
-      <label>아이템 (${d.itemIds.length}개)</label>
-      <div class="item-chip-list" id="chip-list"></div>
-    </div>
-    <div style="display:flex; gap:10px; margin-top:22px;">
-      <button class="btn btn-brass" id="save-outfit">코디 저장</button>
-      <button class="btn btn-ghost" id="cancel-outfit">취소</button>
-    </div>
-  `;
-  right.appendChild(panel);
-  grid.appendChild(right);
+  grid.className = 'grid grid-cols-2 gap-3';
+  sorted.forEach(o=>{
+    const card = document.createElement('div');
+    card.className = 'bg-white p-2 rounded-2xl border border-gray-100 shadow-sm cursor-pointer';
+    card.innerHTML = `
+      <img src="${o.photo}" class="w-full h-40 object-cover rounded-xl mb-2" />
+      <p class="text-xs text-gray-800 font-semibold">${fmtDate(o.date)}</p>
+      ${o.location ? `<div class="flex items-center gap-1 mt-0.5"><img src="${PIN_ICON}" class="w-3 h-3"/><span class="text-[11px] text-gray-600/70">${o.location}</span></div>` : ''}
+    `;
+    card.addEventListener('click', ()=>{ state.coordiDetailId = o.id; render(); });
+    grid.appendChild(card);
+  });
   wrap.appendChild(grid);
+  return wrap;
+}
 
-  // chip list render
-  const chipList = panel.querySelector('#chip-list');
+/* ---------- SEARCH TAB (돋보기: 필터별 아이템) ---------- */
+function renderSearchTab(){
+  const wrap = document.createElement('section');
+  wrap.className = 'space-y-4';
+  const area = document.createElement('div');
+  area.id = 'search-content-area';
+  wrap.appendChild(area);
+
+  if(state.items.length === 0){
+    area.innerHTML = `<div class="text-center py-20 text-gray-700/60 text-sm">아직 등록된 아이템이 없어요.<br/>코디를 등록하면서 아이템을 함께 추가해보세요.</div>`;
+    return wrap;
+  }
+
+  const filter = state.searchFilter;
+
+  if(filter === '전체' || (filter === '카테고리' && state.searchCat === 'all')){
+    let list = state.items.slice();
+    list = sortItems(list, state.searchSort, state.searchSortDir);
+    const grid = document.createElement('div');
+    grid.className = 'grid grid-cols-2 gap-3';
+    list.forEach(it=>{
+      const c = document.createElement('div');
+      c.className = 'bg-white p-3 rounded-2xl border border-gray-100 relative cursor-pointer';
+      c.innerHTML = `
+        <span class="absolute bottom-2 right-2 text-[10px] ${it.owned!==false?'bg-emerald-100 text-emerald-800':'bg-gray-100 text-gray-500'} px-2 py-0.5 rounded-full font-bold">${it.owned!==false?'OWN':'PAST'}</span>
+        <img src="${it.photo}" class="w-full h-28 object-cover rounded-lg mb-2" />
+        <p class="text-[10px] text-gray-400 font-semibold">${CAT_ICON[it.category]||''} ${it.category}</p>
+        <p class="text-xs font-bold text-gray-900 truncate">${it.brand || it.name || '브랜드 미상'}</p>
+        ${it.brand && it.name ? `<p class="text-[10px] text-gray-400 truncate">${it.name}</p>` : ''}
+      `;
+      c.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
+      grid.appendChild(c);
+    });
+    area.appendChild(grid);
+  } else if(filter === '카테고리'){
+    // 대분류를 골랐으면 소분류 섹션별로 가로 스크롤 카드 나열
+    const main = state.searchCat;
+    const box = document.createElement('div');
+    box.className = 'space-y-6';
+
+    const totalCount = state.items.filter(it=>it.category===main).length;
+    const totalPrice = state.items.filter(it=>it.category===main).reduce((s,it)=> s + (Number(it.price)||0), 0);
+    const topRow = document.createElement('div');
+    topRow.className = 'flex items-start justify-between gap-2';
+
+    const totalLabel = document.createElement('div');
+    totalLabel.className = 'flex items-center gap-2 flex-wrap';
+    totalLabel.innerHTML = `<span class="text-xs text-gray-400 font-semibold">${main} 총 ${totalCount}개</span><span class="text-xs text-red-500 font-bold">총 구매가 ${totalPrice.toLocaleString('ko-KR')}원</span>`;
+    topRow.appendChild(totalLabel);
+
+    const sortRow = document.createElement('div');
+    sortRow.className = 'flex gap-2 shrink-0';
+    function sortBtnHTML(key,label){
+      const active = state.searchSort===key;
+      const arrow = active ? (state.searchSortDir==='asc' ? '▲' : '▼') : '';
+      return `<button data-sortkey="${key}" class="cat-sort-btn px-3 py-1 rounded-full text-[11px] font-bold ${active?'bg-gray-900 text-white':'bg-gray-100 text-gray-500'}">${label} ${arrow}</button>`;
+    }
+    sortRow.innerHTML = sortBtnHTML('purchase','구매일') + sortBtnHTML('price','구매가');
+    topRow.appendChild(sortRow);
+    box.appendChild(topRow);
+    sortRow.querySelectorAll('.cat-sort-btn').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const key = b.dataset.sortkey;
+        if(state.searchSort === key){ state.searchSortDir = state.searchSortDir === 'asc' ? 'desc' : 'asc'; }
+        else { state.searchSort = key; state.searchSortDir = 'desc'; }
+        render();
+      });
+    });
+
+    const subs = CAT_SUB[main] || [];
+    let any = false;
+    subs.forEach(sub=>{
+      const its = sortItems(state.items.filter(it=>it.category===main && it.subCategory===sub), state.searchSort, state.searchSortDir);
+      if(its.length===0) return;
+      any = true;
+      const row = document.createElement('div');
+      row.innerHTML = `<h3 class="font-bold text-sm mb-2 text-gray-950">${sub} <span class="text-gray-400 font-normal">아이템 ${its.length}개</span></h3>`;
+      const scroll = document.createElement('div');
+      scroll.className = 'flex gap-3 overflow-x-auto custom-scroll pb-2';
+      its.forEach(it=>{
+        const card = document.createElement('div');
+        card.className = 'w-32 flex-shrink-0 bg-white p-2 rounded-2xl border border-gray-100 cursor-pointer';
+        card.innerHTML = `<img src="${it.photo}" class="w-full h-32 object-cover rounded-lg" /><p class="text-xs font-bold truncate mt-1">${it.brand || '브랜드 미상'}</p><p class="text-[10px] text-gray-400 truncate">${it.name || ''}</p>`;
+        card.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
+        scroll.appendChild(card);
+      });
+      row.appendChild(scroll);
+      box.appendChild(row);
+    });
+    if(!any){
+      const empty = document.createElement('div');
+      empty.className = 'text-center py-16 text-gray-700/60 text-sm';
+      empty.textContent = `등록된 ${main} 아이템이 없어요.`;
+      box.appendChild(empty);
+    }
+    area.appendChild(box);
+  } else if(filter === '브랜드'){
+    const groups = new Map();
+    state.items.forEach(it=>{
+      const key = (it.brand && it.brand.trim()) ? it.brand.trim() : '브랜드 미상';
+      if(!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(it);
+    });
+    const names = Array.from(groups.keys()).sort((a,b)=>{
+      if(a==='브랜드 미상') return 1;
+      if(b==='브랜드 미상') return -1;
+      return a.localeCompare(b,'ko');
+    });
+    const box = document.createElement('div');
+    box.className = 'space-y-6';
+    names.forEach(brand=>{
+      const its = groups.get(brand).slice().sort((a,b)=>{
+        const na = (a.name || a.category || '').trim();
+        const nb = (b.name || b.category || '').trim();
+        return na.localeCompare(nb, 'ko');
+      });
+      const row = document.createElement('div');
+      row.innerHTML = `<h3 class="font-bold text-sm mb-2 text-gray-950">${brand}</h3>`;
+      const scroll = document.createElement('div');
+      scroll.className = 'flex gap-3 overflow-x-auto custom-scroll pb-2';
+      its.forEach(it=>{
+        const card = document.createElement('div');
+        card.className = 'w-32 flex-shrink-0 bg-white p-2 rounded-2xl border border-gray-100 cursor-pointer';
+        card.innerHTML = `<img src="${it.photo}" class="w-full h-20 object-cover rounded-lg" /><p class="text-xs font-semibold truncate mt-1">${it.name || CAT_ICON[it.category]+' '+it.category}</p>`;
+        card.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
+        scroll.appendChild(card);
+      });
+      row.appendChild(scroll);
+      box.appendChild(row);
+    });
+    area.appendChild(box);
+  } else if(filter === '착장 빈도'){
+    const list = state.items.slice().sort((a,b)=>{
+      const fa = outfitsUsingItem(a.id), fb = outfitsUsingItem(b.id);
+      if(fb !== fa) return fb - fa;
+      const na = (a.brand || a.name || '').trim();
+      const nb = (b.brand || b.name || '').trim();
+      return na.localeCompare(nb, 'ko');
+    });
+    const box = document.createElement('div');
+    box.className = 'space-y-2';
+    box.innerHTML = `<p class="text-[10px] text-gray-400 font-bold mb-2 tracking-wide">BEST ITEM</p>`;
+    list.forEach(it=>{
+      const row = document.createElement('div');
+      row.className = 'bg-white p-3 rounded-2xl border border-gray-100 flex items-center justify-between cursor-pointer';
+      row.innerHTML = `
+        <div class="flex items-center gap-3">
+          <img src="${it.photo}" class="w-12 h-12 object-cover rounded-lg" />
+          <div>
+            <p class="text-xs font-bold">${it.brand || '브랜드 미상'}</p>
+            <p class="text-[10px] text-gray-400">${it.name || CAT_ICON[it.category]+' '+it.category}</p>
+          </div>
+        </div>
+        <span class="text-xs font-bold text-gray-900">${outfitsUsingItem(it.id)}회</span>
+      `;
+      row.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
+      box.appendChild(row);
+    });
+    area.appendChild(box);
+  } else if(filter === '사이즈 비교'){
+    area.appendChild(renderSizeCompare());
+  }
+  return wrap;
+}
+
+/* ---------- 사이즈 비교: 팝업에서 대분류→소분류를 먼저 고르고, 결과 화면엔 선택된 항목만 표시 ---------- */
+function renderSizeCompare(){
+  const box = document.createElement('div');
+  box.className = 'space-y-4';
+
+  if(!state.compareCat){
+    const hint = document.createElement('div');
+    hint.className = 'text-center py-16 text-gray-700/60 text-sm';
+    hint.textContent = '사이즈 비교 필터에서 비교할 카테고리를 선택해주세요.';
+    box.appendChild(hint);
+    return box;
+  }
+
+  const main = state.compareCat;
+  const fields = SIZE_FIELDS[main] || [];
+  const showCm = CM_HINT_CATS.includes(main);
+  const subs = state.compareSubCat ? [state.compareSubCat] : (CAT_SUB[main] || []);
+
+  // 지금 비교 중인 항목 라벨 (탭하면 다시 선택 팝업)
+  const labelBtn = document.createElement('button');
+  labelBtn.className = 'flex items-center gap-1 text-xs font-bold text-gray-900 bg-gray-100 px-3 py-1.5 rounded-full';
+  labelBtn.innerHTML = `${CAT_ICON[main]||''} ${main} · ${state.compareSubCat || '전체'} <span class="text-gray-400 font-normal">▾</span>`;
+  labelBtn.addEventListener('click', ()=>{ state.sizePopupOpen = true; render(); });
+  box.appendChild(labelBtn);
+
+  const showCmTag = fields.some(f=>f.key==='sizeLabel') && showCm;
+  let any = false;
+
+  subs.forEach(sub=>{
+    const its = sortBySize(state.items.filter(it=>it.category===main && it.subCategory===sub), main);
+    if(its.length===0) return;
+    any = true;
+
+    const section = document.createElement('div');
+    const headRow = document.createElement('div');
+    headRow.className = 'flex items-center justify-between gap-2 mb-2';
+    headRow.innerHTML = `<h3 class="font-bold text-sm text-gray-950">${sub} <span class="text-gray-400 font-normal">아이템 ${its.length}개</span></h3>${showCmTag ? '<span class="text-gray-400 font-normal text-[10px] shrink-0">(cm)</span>' : ''}`;
+    section.appendChild(headRow);
+
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'overflow-x-auto custom-scroll bg-white rounded-2xl border border-gray-100';
+    const table = document.createElement('table');
+    table.className = 'text-xs w-full border-collapse';
+
+    const thead = document.createElement('thead');
+    let headCells = `<th class="p-2 sticky left-0 bg-white font-bold min-w-[64px] text-center">아이템</th><th class="p-2 font-bold whitespace-nowrap text-left">브랜드</th>`;
+    if(fields.length){
+      fields.forEach((f,i)=>{
+        headCells += `<th class="p-2 font-bold whitespace-nowrap text-center">${f.label}</th>`;
+      });
+    } else {
+      headCells += `<th class="p-2 font-bold whitespace-nowrap text-center">사이즈</th>`;
+    }
+    thead.innerHTML = `<tr class="text-gray-400 text-center">${headCells}</tr>`;
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    its.forEach(it=>{
+      const tr = document.createElement('tr');
+      tr.className = 'border-t border-gray-100 cursor-pointer active:bg-gray-50';
+      let cells = `
+        <td class="p-2 sticky left-0 bg-white text-center"><img src="${it.photo}" class="w-9 h-9 object-cover rounded-lg mx-auto" /></td>
+        <td class="p-2 text-gray-900 font-semibold whitespace-nowrap text-left">${it.brand || '브랜드 미상'}</td>
+      `;
+      if(fields.length){
+        fields.forEach(f=>{ cells += `<td class="p-2 text-gray-700 whitespace-nowrap text-center">${it[f.key] || '-'}</td>`; });
+      } else {
+        cells += `<td class="p-2 text-gray-500 whitespace-pre-wrap max-w-[160px] text-center">${it.sizeNote || '-'}</td>`;
+      }
+      tr.innerHTML = cells;
+      tr.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    section.appendChild(tableWrap);
+    box.appendChild(section);
+  });
+
+  if(!any){
+    const empty = document.createElement('div');
+    empty.className = 'text-center py-16 text-gray-700/60 text-sm';
+    empty.textContent = `등록된 ${main}${state.compareSubCat ? ' · '+state.compareSubCat : ''} 아이템이 없어요.`;
+    box.appendChild(empty);
+  }
+  return box;
+}
+
+/* ============================================================
+   FAB (빠른 코디 등록)
+   ============================================================ */
+function renderFAB(){
+  const btn = document.createElement('button');
+  btn.className = 'absolute right-4 bottom-24 z-20 w-12 h-12 rounded-full bg-gray-900 text-white text-2xl shadow-lg flex items-center justify-center active:scale-95 transition-transform';
+  btn.textContent = '+';
+  btn.title = '오늘 코디 등록';
+  btn.addEventListener('click', ()=>{
+    state.registerDraft = { date: todayStr(), location:'', photo:null, itemIds:[] };
+    render();
+  });
+  return btn;
+}
+
+/* ============================================================
+   BOTTOM NAV
+   ============================================================ */
+function renderBottomNav(){
+  const nav = document.createElement('nav');
+  nav.className = 'absolute bottom-0 inset-x-0 bg-white/80 backdrop-blur border-t border-gray-100 p-3 flex justify-around items-center z-10';
+  const items = [
+    { key:'calendar', path:'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
+    { key:'gallery', path:'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
+    { key:'search', path:'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
+  ];
+  items.forEach(it=>{
+    const b = document.createElement('button');
+    b.className = 'p-2 transition-transform active:scale-95 ' + (state.tab===it.key ? 'text-gray-900' : 'text-gray-400');
+    b.innerHTML = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${it.path}"/></svg>`;
+    b.addEventListener('click', ()=>{ state.tab = it.key; render(); });
+    nav.appendChild(b);
+  });
+  return nav;
+}
+
+/* ============================================================
+   카테고리 & 정렬 팝업
+   ============================================================ */
+function renderCategoryPopup(){
+  const bg = document.createElement('div');
+  bg.className = 'fixed inset-0 bg-black/30 z-50 flex justify-end flex-col fade-enter';
+  const sheet = document.createElement('div');
+  sheet.className = 'bg-white rounded-t-3xl p-6 space-y-4 sheet-enter';
+  sheet.innerHTML = `
+    <h3 class="font-bold text-md border-b pb-2">카테고리 선택</h3>
+    <div class="space-y-1">
+      <label class="text-xs text-gray-400 font-bold">품목 선택</label>
+      <div class="flex gap-2 flex-wrap text-xs" id="cat-chip-list">
+        <button data-cat="all" class="cat-chip px-3 py-1.5 rounded-full ${state.searchCat==='all'?'bg-gray-100 font-semibold':'bg-gray-100'}">전체</button>
+        ${CATS.map(c=>`<button data-cat="${c}" class="cat-chip px-3 py-1.5 rounded-full ${state.searchCat===c?'bg-gray-100 font-semibold':'bg-gray-100'}">${CAT_ICON[c]} ${c}</button>`).join('')}
+      </div>
+    </div>
+    <button id="apply-cat-filter" class="w-full py-3 bg-gray-900 text-white text-xs font-bold rounded-xl mt-4">적용하기</button>
+    <button id="close-cat-popup" class="w-full py-1 text-xs text-gray-400">닫기</button>
+  `;
+  bg.appendChild(sheet);
+  bg.addEventListener('click', e=>{ if(e.target===bg){ state.categoryPopupOpen=false; render(); } });
+  sheet.querySelectorAll('.cat-chip').forEach(b=>{
+    b.addEventListener('click', ()=>{ state.searchCat = b.dataset.cat; render2Popup(); });
+  });
+  function render2Popup(){
+    // repaint just the popup without closing it
+    state.categoryPopupOpen = true;
+    render();
+  }
+  sheet.querySelector('#apply-cat-filter').addEventListener('click', ()=>{
+    state.searchFilter = '카테고리';
+    state.categoryPopupOpen = false;
+    render();
+  });
+  sheet.querySelector('#close-cat-popup').addEventListener('click', ()=>{ state.categoryPopupOpen=false; render(); });
+  return bg;
+}
+
+/* ============================================================
+   사이즈 비교 팝업 (대분류 → 소분류 선택)
+   ============================================================ */
+function renderSizePopup(){
+  const bg = document.createElement('div');
+  bg.className = 'fixed inset-0 bg-black/30 z-50 flex justify-end flex-col fade-enter';
+  const sheet = document.createElement('div');
+  sheet.className = 'bg-white rounded-t-3xl p-6 space-y-4 sheet-enter';
+  const main = state.compareCat;
+  sheet.innerHTML = `
+    <h3 class="font-bold text-md border-b pb-2">사이즈 비교 카테고리 선택</h3>
+    <div class="space-y-1">
+      <label class="text-xs text-gray-400 font-bold">품목 선택</label>
+      <div class="flex gap-2 flex-wrap text-xs" id="size-cat-chip-list">
+        ${CAT_MAIN.map(c=>`<button data-cat="${c}" class="size-cat-chip px-3 py-1.5 rounded-full ${main===c?'bg-gray-900 text-white font-semibold':'bg-gray-100 text-gray-600'}">${CAT_ICON[c]} ${c}</button>`).join('')}
+      </div>
+    </div>
+    ${main ? `
+    <div class="space-y-1 pt-2">
+      <label class="text-xs text-gray-400 font-bold">비교할 소분류 선택</label>
+      <div class="flex gap-2 flex-wrap text-xs" id="size-sub-chip-list">
+        <button data-sub="__all__" class="size-sub-chip px-3 py-1.5 rounded-full ${!state.compareSubCat?'bg-gray-900 text-white font-semibold':'bg-gray-100 text-gray-600'}">전체</button>
+        ${(CAT_SUB[main]||[]).map(s=>`<button data-sub="${s}" class="size-sub-chip px-3 py-1.5 rounded-full ${state.compareSubCat===s?'bg-gray-900 text-white font-semibold':'bg-gray-100 text-gray-600'}">${s}</button>`).join('')}
+      </div>
+    </div>` : ''}
+    <button id="apply-size-filter" class="w-full py-3 rounded-xl mt-4 text-xs font-bold ${main ? 'bg-gray-900 text-white' : 'bg-gray-200 text-gray-400'}" ${main?'':'disabled'}>${main?'적용하기':'품목을 먼저 선택해주세요'}</button>
+    <button id="close-size-popup" class="w-full py-1 text-xs text-gray-400">닫기</button>
+  `;
+  bg.appendChild(sheet);
+  bg.addEventListener('click', e=>{ if(e.target===bg){ state.sizePopupOpen=false; render(); } });
+  function render2Popup(){
+    state.sizePopupOpen = true;
+    render();
+  }
+  sheet.querySelectorAll('.size-cat-chip').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      state.compareCat = b.dataset.cat;
+      state.compareSubCat = null;
+      render2Popup();
+    });
+  });
+  sheet.querySelectorAll('.size-sub-chip').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      state.compareSubCat = b.dataset.sub === '__all__' ? null : b.dataset.sub;
+      render2Popup();
+    });
+  });
+  if(main){
+    sheet.querySelector('#apply-size-filter').addEventListener('click', ()=>{
+      state.searchFilter = '사이즈 비교';
+      state.sizePopupOpen = false;
+      render();
+    });
+  }
+  sheet.querySelector('#close-size-popup').addEventListener('click', ()=>{ state.sizePopupOpen=false; render(); });
+  return bg;
+}
+
+/* ============================================================
+   코디 상세 모달 (2단계)
+   ============================================================ */
+function renderCoordiDetailModal(){
+  const o = state.outfits.find(x=>x.id===state.coordiDetailId);
+  const bg = document.createElement('div');
+  bg.className = 'fixed inset-0 bg-[#F2F2F3] z-40 flex flex-col overflow-y-auto fade-enter';
+  if(!o){ state.coordiDetailId = null; return bg; }
+  const items = o.itemIds.map(id=>state.items.find(x=>x.id===id)).filter(Boolean);
+  const presentCats = CAT_MAIN.filter(c=>items.some(it=>it.category===c));
+  const filteredItems = state.coordiFilterCat==='all' ? items : items.filter(it=>it.category===state.coordiFilterCat);
+  bg.innerHTML = `
+    <div class="p-4 flex justify-between items-center border-b border-gray-100 bg-[#F2F2F3]/90 backdrop-blur sticky top-0 z-10">
+      <div class="leading-tight">
+        <p class="font-bold">${fmtDate(o.date)}</p>
+        <p class="font-bold text-[11px] text-gray-400">OOTD</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="del-coordi" class="text-xs text-red-500 font-semibold">삭제</button>
+        <button id="close-coordi" class="text-xl font-bold p-1">✕</button>
+      </div>
+    </div>
+    <div class="p-4 space-y-4">
+      <img src="${o.photo}" class="w-full h-96 object-cover rounded-3xl shadow-md" />
+      ${o.location ? `<div class="flex items-center gap-1.5 text-sm text-gray-700"><img src="${PIN_ICON}" class="w-3.5 h-3.5"/><span>${o.location}</span></div>` : ''}
+      <div>
+        <label class="text-xs font-bold text-gray-800">아이템 (${items.length}개)</label>
+        <div class="flex gap-2 overflow-x-auto custom-scroll pb-1 mt-2" id="coordi-cat-chips">
+          <button data-cat="all" class="coordi-cat-chip flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold ${state.coordiFilterCat==='all'?'bg-gray-900 text-white':'bg-gray-100 text-gray-600'}">전체</button>
+          ${presentCats.map(c=>`<button data-cat="${c}" class="coordi-cat-chip flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold ${state.coordiFilterCat===c?'bg-gray-900 text-white':'bg-gray-100 text-gray-600'}">${CAT_ICON[c]} ${c}</button>`).join('')}
+        </div>
+        <div class="grid grid-cols-3 gap-2 mt-2" id="coordi-item-list">
+          ${filteredItems.length===0 ? `<p class="text-xs text-gray-600/60 col-span-3">등록된 아이템이 없어요</p>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+  bg.querySelectorAll('.coordi-cat-chip').forEach(b=>{
+    b.addEventListener('click', ()=>{ state.coordiFilterCat = b.dataset.cat; render(); });
+  });
+  const list = bg.querySelector('#coordi-item-list');
+  filteredItems.forEach(it=>{
+    const card = document.createElement('div');
+    card.className = 'relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-gray-100';
+    card.innerHTML = `
+      <img src="${it.photo}" class="absolute inset-0 w-full h-full object-cover" />
+      <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent pt-4 pb-1.5 px-1.5">
+        <p class="text-[10px] font-semibold text-white truncate">${it.brand || '브랜드 미상'}</p>
+        <p class="text-[9px] text-white/70 truncate">${it.name || ''}</p>
+      </div>
+    `;
+    card.addEventListener('click', ()=>{ state.itemBriefId = it.id; render(); });
+    list.appendChild(card);
+  });
+  bg.querySelector('#close-coordi').addEventListener('click', ()=>{ state.coordiDetailId=null; render(); });
+  bg.querySelector('#del-coordi').addEventListener('click', ()=>{
+    askConfirm('이 코디 기록을 삭제할까요? (아이템 정보는 유지됩니다)', ()=>{
+      state.outfits = state.outfits.filter(x=>x.id!==o.id);
+      state.coordiDetailId = null;
+      saveState();
+      render();
+    });
+  });
+  return bg;
+}
+
+/* ============================================================
+   아이템 간략 정보 (3단계 바텀시트)
+   ============================================================ */
+function renderItemBriefSheet(){
+  const it = state.items.find(x=>x.id===state.itemBriefId);
+  const bg = document.createElement('div');
+  bg.className = 'fixed inset-0 bg-black/40 z-50 flex justify-end flex-col fade-enter';
+  if(!it){ state.itemBriefId = null; return bg; }
+  const sheet = document.createElement('div');
+  sheet.className = 'bg-white rounded-t-3xl p-6 space-y-4 sheet-enter';
+  sheet.innerHTML = `
+    <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto"></div>
+    <div class="flex justify-between items-center">
+      <h3 class="font-bold text-lg">${it.brand ? it.brand+' ' : ''}${it.name || it.category}</h3>
+      <span class="text-xs ${it.owned!==false?'bg-gray-100 text-gray-800':'bg-gray-100 text-gray-500'} px-2.5 py-1 rounded-full font-bold">${it.owned!==false?'OWN':'PAST'}</span>
+    </div>
+    <p class="text-xs text-gray-500">${CAT_ICON[it.category]||''} ${it.category}</p>
+    <button id="go-full-detail" class="w-full py-3 bg-gray-900 text-white font-semibold rounded-2xl text-sm shadow-md active:scale-98 transition-transform">자세한 정보 보기 (실측/구매일 등)</button>
+    <button id="close-brief" class="w-full py-2 text-xs text-gray-400">닫기</button>
+  `;
+  bg.appendChild(sheet);
+  bg.addEventListener('click', e=>{ if(e.target===bg){ state.itemBriefId=null; render(); } });
+  sheet.querySelector('#close-brief').addEventListener('click', ()=>{ state.itemBriefId=null; render(); });
+  sheet.querySelector('#go-full-detail').addEventListener('click', ()=>{
+    state.itemFullId = it.id;
+    state.itemBriefId = null;
+    render();
+  });
+  return bg;
+}
+
+/* ============================================================
+   아이템 상세 정보 (4단계 전체화면)
+   ============================================================ */
+function renderItemFullModal(){
+  const it = state.items.find(x=>x.id===state.itemFullId);
+  const bg = document.createElement('div');
+  bg.className = 'fixed inset-0 bg-[#F2F2F3] z-50 flex flex-col overflow-y-auto fade-enter';
+  if(!it){ state.itemFullId = null; return bg; }
+  bg.innerHTML = `
+    <div class="p-4 flex justify-between items-center border-b border-gray-100 bg-[#F2F2F3]/90 backdrop-blur sticky top-0 z-10">
+      <h3 class="font-bold">Item Detail</h3>
+      <div class="flex items-center gap-3">
+        <button id="edit-item" class="text-xs text-gray-600 font-semibold">수정</button>
+        <button id="del-item" class="text-xs text-red-500 font-semibold">삭제</button>
+        <button id="close-full" class="text-xl font-bold p-1">✕</button>
+      </div>
+    </div>
+    <div class="p-6 space-y-6">
+      <img src="${it.photo}" class="w-full h-64 object-contain rounded-2xl bg-white p-4 border border-gray-100" />
+      <div class="flex justify-between items-center">
+        <div>
+          <span class="text-xs text-gray-700 font-bold">${(it.brand||'브랜드 미상').toUpperCase()}</span>
+          <h2 class="text-xl font-bold">${it.name || CAT_ICON[it.category]+' '+it.category}</h2>
+        </div>
+        <span class="text-sm ${it.owned!==false?'bg-emerald-100 text-emerald-800':'bg-gray-100 text-gray-500'} px-3 py-1 rounded-full font-bold">${it.owned!==false?'OWN':'PAST'}</span>
+      </div>
+      ${(SIZE_FIELDS[it.category]||[]).length ? `
+      <div class="bg-white p-4 rounded-2xl border border-gray-100 space-y-2">
+        <h4 class="text-xs font-bold text-gray-900 border-b pb-1">사이즈</h4>
+        <div class="grid grid-cols-2 gap-y-1.5 pt-1 text-xs">
+          ${SIZE_FIELDS[it.category].map(f=>`<p class="text-gray-500">${f.label} <span class="text-gray-900 font-semibold">${it[f.key] || '-'}</span></p>`).join('')}
+        </div>
+      </div>` : ''}
+      <div class="bg-white p-4 rounded-2xl border border-gray-100 space-y-1.5">
+        <h4 class="text-xs font-bold text-gray-900 border-b pb-1">상세 정보</h4>
+        <p class="text-xs text-gray-500 pt-1">품번 <span class="text-gray-900 font-semibold">${it.modelNo || '-'}</span></p>
+        <p class="text-xs text-gray-500">구매 가격 <span class="text-gray-900 font-semibold">${fmtWon(it.price)}</span></p>
+        <p class="text-xs text-gray-500">구매일 <span class="text-gray-900 font-semibold">${it.purchaseDate ? fmtDate(it.purchaseDate) : '-'}</span></p>
+        <p class="text-xs text-gray-500">소분류 <span class="text-gray-900 font-semibold">${it.subCategory || '-'}</span></p>
+        <p class="text-xs text-gray-500">착장 빈도 <span class="text-gray-900 font-semibold">${outfitsUsingItem(it.id)}회 착용</span></p>
+      </div>
+      <div class="bg-white p-4 rounded-2xl border border-gray-100 space-y-2">
+        <h4 class="text-xs font-bold text-gray-900 border-b pb-1">노트</h4>
+        <p class="text-xs text-gray-600 pt-1 whitespace-pre-wrap">${it.sizeNote ? it.sizeNote : '작성된 메모가 없어요'}</p>
+      </div>
+      <button id="toggle-owned" class="w-full py-2.5 border border-gray-300 text-gray-800 text-xs font-bold rounded-xl">${it.owned!==false ? '처분함으로 표시' : '보유중으로 표시'}</button>
+    </div>
+  `;
+  bg.querySelector('#close-full').addEventListener('click', ()=>{ state.itemFullId=null; render(); });
+  bg.querySelector('#edit-item').addEventListener('click', ()=>{
+    state.itemFullId = null;
+    state.itemFlow = { mode:'edit', itemId: it.id, form: itemToForm(it) };
+    render();
+  });
+  bg.querySelector('#toggle-owned').addEventListener('click', ()=>{
+    it.owned = it.owned===false ? true : false;
+    saveState();
+    render();
+  });
+  bg.querySelector('#del-item').addEventListener('click', ()=>{
+    askConfirm('이 아이템을 삭제할까요? 관련된 코디 기록에서도 제거됩니다.', ()=>{
+      state.items = state.items.filter(x=>x.id!==it.id);
+      state.outfits.forEach(o=>{ o.itemIds = o.itemIds.filter(id=>id!==it.id); });
+      state.itemFullId = null;
+      saveState();
+      render();
+    });
+  });
+  return bg;
+}
+
+/* ============================================================
+   코디 등록 화면 (전체화면)
+   ============================================================ */
+function renderOutfitRegisterView(){
+  const d = state.registerDraft;
+  const bg = document.createElement('div');
+  bg.className = 'fixed inset-0 bg-[#F2F2F3] z-40 flex flex-col overflow-y-auto fade-enter';
+  bg.innerHTML = `
+    <div class="p-4 flex justify-between items-center border-b border-gray-100 bg-[#F2F2F3]/90 backdrop-blur sticky top-0 z-10">
+      <h3 class="font-bold">코디 등록</h3>
+      <button id="cancel-register" class="text-xl font-bold p-1">✕</button>
+    </div>
+    <div class="p-4 space-y-4">
+      <div id="outfit-photo-drop" class="border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/40 flex flex-col items-center justify-center text-center p-6 cursor-pointer min-h-[220px] overflow-hidden relative">
+        ${d.photo ? `<img src="${d.photo}" class="absolute inset-0 w-full h-full object-cover rounded-2xl"/>` : `<div class="text-2xl mb-1">📷</div><p class="text-sm text-gray-800">코디 전체 사진</p><p class="text-xs text-gray-500 mt-1">클릭해서 업로드</p>`}
+        <input type="file" accept="image/*" id="outfit-photo-input"/>
+      </div>
+      <div class="flex gap-3">
+        <div class="w-[170px] shrink-0">
+          <label class="text-xs font-bold text-gray-800">날짜</label>
+          <input type="date" id="f-date" value="${d.date}" class="block w-full box-border mt-1 px-2 h-11 rounded-xl border border-gray-200 bg-white text-base flex items-center"/>
+        </div>
+        <div class="flex-1 min-w-0">
+          <label class="text-xs font-bold text-gray-800">지역</label>
+          <input type="text" id="f-loc" placeholder="예: 성수동" value="${d.location}" class="block w-full min-w-0 box-border mt-1 px-3 h-11 rounded-xl border border-gray-200 bg-white text-base"/>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-bold text-gray-800">아이템 (${d.itemIds.length}개)</label>
+        <div class="flex flex-wrap gap-3 mt-2" id="chip-list"></div>
+      </div>
+      <button id="save-outfit" class="w-full py-3 bg-gray-900 text-white font-bold rounded-2xl text-sm shadow-md mt-2">코디 저장</button>
+    </div>
+  `;
+
+  const chipList = bg.querySelector('#chip-list');
   d.itemIds.forEach(id=>{
     const it = state.items.find(x=>x.id===id);
     if(!it) return;
     const chip = document.createElement('div');
-    chip.className = 'item-chip';
+    chip.className = 'w-20 relative bg-white border border-gray-100 rounded-xl p-1.5 text-center';
     chip.innerHTML = `
-      <button class="rm">×</button>
-      <img src="${it.photo}"/>
-      <div class="cat">${CAT_ICON[it.category]||''} ${it.category}</div>
-      <div class="nm">${it.brand||'브랜드 미상'}</div>
+      <button class="rm absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-400 text-white text-[10px]">×</button>
+      <img src="${it.photo}" class="w-full h-14 object-cover rounded-lg"/>
+      <p class="text-[10px] text-gray-500 mt-1 truncate">${it.category}</p>
+      <p class="text-[10px] font-bold truncate">${it.brand || '미상'}</p>
     `;
-    chip.querySelector('.rm').addEventListener('click', (e)=>{
+    chip.querySelector('.rm').addEventListener('click', e=>{
       e.stopPropagation();
       d.itemIds = d.itemIds.filter(x=>x!==id);
       render();
@@ -710,25 +1183,22 @@ function renderUploadView(){
     chipList.appendChild(chip);
   });
   const addChip = document.createElement('button');
-  addChip.className = 'add-item-chip';
-  addChip.innerHTML = `+<span>아이템 추가</span>`;
-  addChip.addEventListener('click', ()=>{ state.addingItem = { mode:null, category: CATS[0] }; render(); });
+  addChip.className = 'w-20 h-[88px] border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center text-gray-400 gap-1';
+  addChip.innerHTML = `<span class="text-lg">＋</span><span class="text-[10px]">아이템 추가</span>`;
+  addChip.addEventListener('click', ()=>{ state.itemFlow = { mode:'choice' }; render(); });
   chipList.appendChild(addChip);
 
-  // events
-  const dropEl = left.querySelector('#outfit-photo-drop');
-  const inputEl = left.querySelector('#outfit-photo-input');
+  const dropEl = bg.querySelector('#outfit-photo-drop');
+  const inputEl = bg.querySelector('#outfit-photo-input');
   dropEl.addEventListener('click', ()=>inputEl.click());
-  inputEl.addEventListener('change', async (e)=>{
+  inputEl.addEventListener('change', async e=>{
     const f = e.target.files[0];
     if(f){ d.photo = await readFileAsDataURL(f); render(); }
   });
-  panel.querySelector('#f-date').addEventListener('input', e=>{ d.date = e.target.value; });
-  panel.querySelector('#f-loc').addEventListener('input', e=>{ d.location = e.target.value; });
-  panel.querySelector('#cancel-outfit').addEventListener('click', ()=>{
-    state.draft = null; state.view = 'calendar'; render();
-  });
-  panel.querySelector('#save-outfit').addEventListener('click', ()=>{
+  bg.querySelector('#f-date').addEventListener('input', e=>{ d.date = e.target.value; });
+  bg.querySelector('#f-loc').addEventListener('input', e=>{ d.location = e.target.value; });
+  bg.querySelector('#cancel-register').addEventListener('click', ()=>{ state.registerDraft = null; render(); });
+  bg.querySelector('#save-outfit').addEventListener('click', ()=>{
     if(!d.photo){ alert('코디 전체 사진을 업로드해주세요.'); return; }
     if(!d.date){ alert('날짜를 선택해주세요.'); return; }
     const existingIdx = state.outfits.findIndex(o=>o.date===d.date);
@@ -740,365 +1210,230 @@ function renderUploadView(){
     } else {
       state.outfits.push(outfit);
     }
-    state.selectedOutfitId = outfit.id;
-    state.draft = null;
-    state.view = 'outfitDetail';
+    state.registerDraft = null;
+    state.coordiDetailId = outfit.id;
     saveState();
     render();
   });
 
-  return wrap;
+  return bg;
 }
 
-/* ============ ADD ITEM MODAL (from upload view) ============ */
-function renderAddItemModal(){
+/* ============================================================
+   아이템 추가 플로우 (선택 / 기존에서 고르기 / 새로 등록)
+   ============================================================ */
+/* ---------- 카테고리 인라인 아코디언 (대분류 탭 → 소분류 칩) ---------- */
+function renderCatAccordionInto(container, f){
+  container.innerHTML = '';
+  const box = document.createElement('div');
+  box.className = 'border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100';
+  CAT_MAIN.forEach(main=>{
+    const row = document.createElement('div');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'w-full flex items-center justify-between px-3 py-2.5 text-sm text-left ' + (f.category===main ? 'bg-gray-50' : 'bg-white');
+    btn.innerHTML = `<span class="${f.category===main?'font-bold text-gray-900':'text-gray-700'}">${CAT_ICON[main]} ${main}${f.category===main && f.subCategory ? `<span class="text-gray-400 font-normal"> · ${f.subCategory}</span>` : ''}</span><span class="text-gray-300 text-xs">${f.catExpand===main?'▲':'▼'}</span>`;
+    btn.addEventListener('click', ()=>{ f.catExpand = (f.catExpand===main) ? null : main; render(); });
+    row.appendChild(btn);
+    if(f.catExpand===main){
+      const subWrap = document.createElement('div');
+      subWrap.className = 'flex flex-wrap gap-2 p-3 bg-gray-50';
+      (CAT_SUB[main]||[]).forEach(sub=>{
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'px-3 py-1.5 rounded-full text-xs font-semibold ' + (f.category===main && f.subCategory===sub ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600');
+        chip.textContent = sub;
+        chip.addEventListener('click', ()=>{ f.category = main; f.subCategory = sub; f.catExpand = null; render(); });
+        subWrap.appendChild(chip);
+      });
+      row.appendChild(subWrap);
+    }
+    box.appendChild(row);
+  });
+  container.appendChild(box);
+}
+/* ---------- 카테고리별 구조화 사이즈 입력 필드 ---------- */
+function renderSizeFieldsInto(container, f){
+  container.innerHTML = '';
+  const fields = SIZE_FIELDS[f.category] || [];
+  if(fields.length === 0) return;
+  const box = document.createElement('div');
+  box.className = 'space-y-3';
+  fields.forEach(spec=>{
+    const row = document.createElement('div');
+    if(spec.type === 'select'){
+      row.innerHTML = `
+        <label class="text-xs font-bold text-gray-800">${spec.label}</label>
+        <select data-key="${spec.key}" class="size-field-select w-full mt-1 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm">
+          <option value="">선택 안 함</option>
+          ${spec.options.map(o=>`<option value="${o}" ${f[spec.key]===o?'selected':''}>${o}</option>`).join('')}
+        </select>`;
+    } else {
+      row.innerHTML = `
+        <label class="text-xs font-bold text-gray-800">${spec.label}</label>
+        <input type="${spec.type==='number'?'number':'text'}" data-key="${spec.key}" value="${f[spec.key]||''}" placeholder="${spec.type==='number'?'cm':''}" class="size-field-input block w-full box-border mt-1 px-3 h-11 rounded-xl border border-gray-200 bg-white text-base"/>`;
+    }
+    box.appendChild(row);
+  });
+  container.appendChild(box);
+  container.querySelectorAll('.size-field-input').forEach(inp=>{
+    inp.addEventListener('input', e=>{ f[e.target.dataset.key] = e.target.value; });
+  });
+  container.querySelectorAll('.size-field-select').forEach(sel=>{
+    sel.addEventListener('change', e=>{ f[e.target.dataset.key] = e.target.value; render(); });
+  });
+}
+
+function renderItemFlowModal(){
   const bg = document.createElement('div');
-  bg.className = 'modal-bg';
-  const wrap = document.createElement('div');
-  wrap.className = 'modal-wrap';
-  const panel = document.createElement('div');
-  panel.className = 'panel';
-  panel.style.width = '420px';
-  panel.style.maxWidth = '90vw';
-  panel.style.maxHeight = '82vh';
-  panel.style.overflowY = 'auto';
+  bg.className = 'fixed inset-0 bg-black/40 z-50 flex justify-end flex-col fade-enter';
+  const sheet = document.createElement('div');
+  sheet.className = 'bg-white rounded-t-3xl p-6 space-y-4 sheet-enter max-h-[85vh] overflow-y-auto';
+  const flow = state.itemFlow;
 
-  const st = state.addingItem;
-
-  if(!st.mode){
-    panel.innerHTML = `
-      <h3 class="serif" style="margin-top:0;">아이템 추가</h3>
-      <div class="page-desc" style="margin-bottom:18px;">기존에 등록한 아이템을 고르거나 새로 추가하세요</div>
-      <div style="display:flex; gap:10px;">
-        <button class="btn btn-ghost" id="pick-existing" style="flex:1;">🗂️ 기존 아이템에서 선택</button>
-        <button class="btn btn-brass" id="pick-new" style="flex:1;">＋ 새 아이템 등록</button>
+  if(flow.mode === 'choice'){
+    sheet.innerHTML = `
+      <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto"></div>
+      <h3 class="font-bold text-lg">아이템 추가</h3>
+      <p class="text-xs text-gray-500">기존에 등록한 아이템을 고르거나 새로 추가하세요</p>
+      <div class="flex gap-2">
+        <button id="pick-existing" class="flex-1 py-3 border border-gray-300 text-gray-800 text-sm font-bold rounded-2xl">🗂️ 기존에서 선택</button>
+        <button id="pick-new" class="flex-1 py-3 bg-gray-900 text-white text-sm font-bold rounded-2xl">＋ 새로 등록</button>
       </div>
+      <button id="close-flow" class="w-full py-2 text-xs text-gray-400">닫기</button>
     `;
-    panel.querySelector('#pick-existing').addEventListener('click', ()=>{ st.mode='pick'; render(); });
-    panel.querySelector('#pick-new').addEventListener('click', ()=>{ st.mode='new'; render(); });
-  } else if(st.mode === 'pick'){
+    sheet.querySelector('#pick-existing').addEventListener('click', ()=>{ state.itemFlow = { mode:'pick' }; render(); });
+    sheet.querySelector('#pick-new').addEventListener('click', ()=>{ state.itemFlow = { mode:'new', form: blankItemForm() }; render(); });
+    sheet.querySelector('#close-flow').addEventListener('click', ()=>{ state.itemFlow=null; render(); });
+  } else if(flow.mode === 'pick'){
     const q = state.pickerSearch.trim().toLowerCase();
     const list = state.items.filter(it=>{
-      if(state.draft && state.draft.itemIds.includes(it.id)) return false;
+      if(state.registerDraft && state.registerDraft.itemIds.includes(it.id)) return false;
       if(!q) return true;
       return (it.brand||'').toLowerCase().includes(q) || (it.name||'').toLowerCase().includes(q) || (it.modelNo||'').toLowerCase().includes(q);
     });
-    panel.innerHTML = `
-      <h3 class="serif" style="margin-top:0;">기존 아이템에서 선택</h3>
-      <div class="search-box" style="margin-bottom:14px;">
-        <span class="ico">🔍</span>
-        <input type="text" id="pick-search" placeholder="브랜드, 이름, 품번 검색" value="${state.pickerSearch}"/>
+    sheet.innerHTML = `
+      <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto"></div>
+      <h3 class="font-bold text-lg">기존 아이템에서 선택</h3>
+      <div class="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+        <span>🔍</span>
+        <input type="text" id="pick-search" placeholder="브랜드, 이름, 품번 검색" value="${state.pickerSearch}" class="bg-transparent outline-none text-sm w-full"/>
       </div>
-      <div class="item-grid" id="pick-grid" style="grid-template-columns:repeat(auto-fill,minmax(110px,1fr));"></div>
-      ${list.length===0 ? `<div class="empty" style="padding:30px 10px;"><p>등록된 아이템이 없어요</p></div>` : ''}
-      <div style="margin-top:16px; display:flex; justify-content:space-between;">
-        <button class="btn btn-ghost btn-sm" id="back-choice">← 뒤로</button>
-        <button class="btn btn-ghost btn-sm" id="close-modal">닫기</button>
-      </div>
+      <div class="grid grid-cols-3 gap-2" id="pick-grid"></div>
+      ${list.length===0 ? `<p class="text-center text-xs text-gray-400 py-6">등록된 아이템이 없어요</p>` : ''}
+      <button id="back-choice" class="w-full py-2 text-xs text-gray-700 font-semibold">← 뒤로</button>
     `;
-    const g = panel.querySelector('#pick-grid');
+    const g = sheet.querySelector('#pick-grid');
     list.forEach(it=>{
       const c = document.createElement('div');
-      c.className = 'item-card';
-      c.innerHTML = `<img src="${it.photo}"/><div class="ic-body"><div class="ic-cat">${CAT_ICON[it.category]||''} ${it.category}</div><div class="ic-name">${it.name||'이름 없음'}</div><div class="ic-brand">${it.brand||''}</div></div>`;
+      c.className = 'bg-gray-50 rounded-xl p-1.5 text-center cursor-pointer';
+      c.innerHTML = `<img src="${it.photo}" class="w-full h-16 object-cover rounded-lg"/><p class="text-[10px] font-bold truncate mt-1">${it.brand||it.category}</p>`;
       c.addEventListener('click', ()=>{
-        state.draft.itemIds.push(it.id);
-        state.addingItem = null;
+        state.registerDraft.itemIds.push(it.id);
+        state.itemFlow = null;
         render();
       });
       g.appendChild(c);
     });
-    panel.querySelector('#pick-search').addEventListener('input', e=>{ state.pickerSearch = e.target.value; render(); });
-    panel.querySelector('#back-choice').addEventListener('click', ()=>{ st.mode=null; render(); });
-    panel.querySelector('#close-modal').addEventListener('click', ()=>{ state.addingItem=null; state.pickerSearch=''; render(); });
-  } else if(st.mode === 'new'){
-    if(!st.form) st.form = { category: CATS[0], photo:null, brand:'', name:'', modelNo:'', purchaseDate:'', price:'' };
-    const f = st.form;
-    panel.innerHTML = `
-      <h3 class="serif" style="margin-top:0;">새 아이템 등록</h3>
-      <div class="photo-drop" id="item-photo-drop" style="min-height:120px; margin-bottom:16px;">
-        ${f.photo ? `<img src="${f.photo}"/>` : `<div class="ico">🏷️</div><div class="hint">아이템 사진 업로드</div>`}
+    sheet.querySelector('#pick-search').addEventListener('input', e=>{ state.pickerSearch = e.target.value; render(); });
+    sheet.querySelector('#back-choice').addEventListener('click', ()=>{ state.itemFlow = { mode:'choice' }; render(); });
+  } else if(flow.mode === 'new' || flow.mode === 'edit'){
+    const isEdit = flow.mode === 'edit';
+    const f = flow.form;
+    sheet.innerHTML = `
+      <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto"></div>
+      <h3 class="font-bold text-lg">${isEdit ? '아이템 수정' : '새 아이템 등록'}</h3>
+      <div id="item-photo-drop" class="border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/40 flex flex-col items-center justify-center text-center min-h-[110px] overflow-hidden relative cursor-pointer">
+        ${f.photo ? `<img src="${f.photo}" class="absolute inset-0 w-full h-full object-cover"/>` : `<div class="text-xl">🏷️</div><p class="text-xs text-gray-600 mt-1">아이템 사진 업로드</p>`}
         <input type="file" accept="image/*" id="item-photo-input"/>
       </div>
-      <div class="field">
-        <label>카테고리</label>
-        <select id="f-cat">${CATS.map(c=>`<option value="${c}" ${c===f.category?'selected':''}>${CAT_ICON[c]} ${c}</option>`).join('')}</select>
+      <div>
+        <label class="text-xs font-bold text-gray-800">카테고리</label>
+        <div id="cat-accordion-wrap" class="mt-1"></div>
       </div>
-      <div class="row2">
-        <div class="field"><label>브랜드명</label><input type="text" id="f-brand" placeholder="예: 뉴발란스" value="${f.brand}"/></div>
-        <div class="field"><label>제품명</label><input type="text" id="f-name" placeholder="예: 993" value="${f.name}"/></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="min-w-0"><label class="text-xs font-bold text-gray-800">브랜드</label><input type="text" id="f-brand" value="${f.brand}" placeholder="예: 뉴발란스" class="block w-full min-w-0 box-border mt-1 px-3 h-11 rounded-xl border border-gray-200 bg-white text-base"/></div>
+        <div class="min-w-0"><label class="text-xs font-bold text-gray-800">제품명</label><input type="text" id="f-name" value="${f.name}" placeholder="예: 993" class="block w-full min-w-0 box-border mt-1 px-3 h-11 rounded-xl border border-gray-200 bg-white text-base"/></div>
       </div>
-      <div class="row2">
-        <div class="field"><label>품번</label><input type="text" id="f-model" placeholder="예: MR993GL" value="${f.modelNo}"/></div>
-        <div class="field"><label>구매일</label><input type="date" id="f-pdate" value="${f.purchaseDate}"/></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="min-w-0"><label class="text-xs font-bold text-gray-800">품번</label><input type="text" id="f-model" value="${f.modelNo}" placeholder="예: MR993GL" class="block w-full min-w-0 box-border mt-1 px-3 h-11 rounded-xl border border-gray-200 bg-white text-base"/></div>
+        <div class="min-w-0"><label class="text-xs font-bold text-gray-800">구매일</label><input type="date" id="f-pdate" value="${f.purchaseDate}" class="block w-full min-w-0 box-border mt-1 px-3 h-11 rounded-xl border border-gray-200 bg-white text-base flex items-center"/></div>
       </div>
-      <div class="field"><label>구매 가격 (원)</label><input type="number" id="f-price" placeholder="예: 189000" value="${f.price}"/></div>
-      <div style="margin-top:14px; display:flex; justify-content:space-between;">
-        <button class="btn btn-ghost btn-sm" id="back-choice">← 뒤로</button>
-        <div style="display:flex; gap:8px;">
-          <button class="btn btn-ghost btn-sm" id="close-modal">취소</button>
-          <button class="btn btn-brass btn-sm" id="save-item">아이템 저장</button>
-        </div>
+      <div><label class="text-xs font-bold text-gray-800">구매 가격 (원)</label><input type="number" id="f-price" value="${f.price}" placeholder="예: 189000" class="block w-full box-border mt-1 px-3 h-11 rounded-xl border border-gray-200 bg-white text-base"/></div>
+      <div id="size-fields-wrap"></div>
+      <div><label class="text-xs font-bold text-gray-800">노트</label><textarea id="f-note" rows="3" placeholder="자유롭게 메모를 남겨보세요" class="block w-full box-border mt-1 px-3 py-2 rounded-xl border border-gray-200 bg-white text-base">${f.sizeNote}</textarea></div>
+      <div class="flex justify-between items-center pt-1">
+        <button id="back-choice" class="text-xs text-gray-700 font-semibold">${isEdit ? '취소' : '← 뒤로'}</button>
+        <button id="save-item" class="px-5 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl">${isEdit ? '수정 완료' : '아이템 저장'}</button>
       </div>
     `;
-    const dropEl = panel.querySelector('#item-photo-drop');
-    const inputEl = panel.querySelector('#item-photo-input');
+    const dropEl = sheet.querySelector('#item-photo-drop');
+    const inputEl = sheet.querySelector('#item-photo-input');
     dropEl.addEventListener('click', ()=>inputEl.click());
     inputEl.addEventListener('change', async e=>{
       const file = e.target.files[0];
       if(file){ f.photo = await readFileAsDataURL(file); render(); }
     });
-    panel.querySelector('#f-cat').addEventListener('change', e=>f.category=e.target.value);
-    panel.querySelector('#f-brand').addEventListener('input', e=>f.brand=e.target.value);
-    panel.querySelector('#f-name').addEventListener('input', e=>f.name=e.target.value);
-    panel.querySelector('#f-model').addEventListener('input', e=>f.modelNo=e.target.value);
-    panel.querySelector('#f-pdate').addEventListener('input', e=>f.purchaseDate=e.target.value);
-    panel.querySelector('#f-price').addEventListener('input', e=>f.price=e.target.value);
-    panel.querySelector('#back-choice').addEventListener('click', ()=>{ st.mode=null; st.form=null; render(); });
-    panel.querySelector('#close-modal').addEventListener('click', ()=>{ state.addingItem=null; render(); });
-    panel.querySelector('#save-item').addEventListener('click', ()=>{
+
+    // 카테고리: 대분류 → 소분류 인라인 아코디언
+    renderCatAccordionInto(sheet.querySelector('#cat-accordion-wrap'), f);
+    // 카테고리별 구조화 사이즈 입력 필드
+    renderSizeFieldsInto(sheet.querySelector('#size-fields-wrap'), f);
+
+    sheet.querySelector('#f-brand').addEventListener('input', e=>f.brand=e.target.value);
+    sheet.querySelector('#f-name').addEventListener('input', e=>f.name=e.target.value);
+    sheet.querySelector('#f-model').addEventListener('input', e=>f.modelNo=e.target.value);
+    sheet.querySelector('#f-pdate').addEventListener('input', e=>f.purchaseDate=e.target.value);
+    sheet.querySelector('#f-price').addEventListener('input', e=>f.price=e.target.value);
+    sheet.querySelector('#f-note').addEventListener('input', e=>f.sizeNote=e.target.value);
+    sheet.querySelector('#back-choice').addEventListener('click', ()=>{
+      if(isEdit){ state.itemFlow = null; state.itemFullId = flow.itemId; render(); }
+      else { state.itemFlow = { mode:'choice' }; render(); }
+    });
+    sheet.querySelector('#save-item').addEventListener('click', ()=>{
       if(!f.photo){ alert('아이템 사진을 업로드해주세요.'); return; }
-      if(!f.brand && !f.name){ alert('브랜드명 또는 제품명을 입력해주세요.'); return; }
-      const newItem = { id: uid('item'), category:f.category, photo:f.photo, brand:f.brand, name:f.name, modelNo:f.modelNo, purchaseDate:f.purchaseDate, price:f.price };
-      state.items.push(newItem);
-      state.draft.itemIds.push(newItem.id);
-      state.addingItem = null;
-      saveState();
-      render();
+      if(!f.brand && !f.name){ alert('브랜드 또는 제품명을 입력해주세요.'); return; }
+      const payload = { category:f.category, subCategory:f.subCategory, photo:f.photo, brand:f.brand, name:f.name, modelNo:f.modelNo, purchaseDate:f.purchaseDate, price:f.price, sizeNote:f.sizeNote };
+      SIZE_KEYS.forEach(k=>{ payload[k] = f[k]; });
+      if(isEdit){
+        const target = state.items.find(x=>x.id===flow.itemId);
+        if(target){ Object.assign(target, payload); }
+        state.itemFlow = null;
+        state.itemFullId = flow.itemId;
+        saveState();
+        render();
+      } else {
+        const newItem = Object.assign({ id: uid('item'), owned:true }, payload);
+        state.items.push(newItem);
+        if(state.registerDraft) state.registerDraft.itemIds.push(newItem.id);
+        state.itemFlow = null;
+        saveState();
+        render();
+      }
     });
   }
 
-  wrap.appendChild(panel);
-  bg.appendChild(wrap);
-  bg.addEventListener('click', (e)=>{ if(e.target===bg){ state.addingItem=null; render(); } });
+  bg.appendChild(sheet);
+  bg.addEventListener('click', e=>{ if(e.target===bg){ state.itemFlow=null; render(); } });
   return bg;
 }
 
-/* ============ OUTFIT DETAIL VIEW ============ */
-function renderOutfitDetailView(){
-  const o = state.outfits.find(x=>x.id===state.selectedOutfitId);
-  const wrap = document.createElement('div');
-  if(!o){
-    wrap.innerHTML = `<div class="empty"><p>코디를 찾을 수 없어요</p></div>`;
-    return wrap;
-  }
-  const head = document.createElement('div');
-  head.className = 'page-head';
-  head.innerHTML = `
-    <div>
-      <h1 class="page-title serif">${fmtDate(o.date)} 코디</h1>
-      <div class="page-desc">${o.location ? '📍 '+o.location : '장소 미기록'}</div>
-    </div>
-    <div style="display:flex; gap:8px;">
-      <button class="btn btn-ghost btn-sm" id="back-cal">← 캘린더로</button>
-      <button class="btn btn-berry btn-sm" id="del-outfit">삭제</button>
-    </div>
-  `;
-  wrap.appendChild(head);
-
-  const grid = document.createElement('div');
-  grid.className = 'detail-grid';
-  const photoWrap = document.createElement('div');
-  photoWrap.className = 'detail-photo-wrap';
-  photoWrap.innerHTML = `
-    <img src="${o.photo}"/>
-    <div class="detail-meta">
-      <div class="d serif">${fmtDate(o.date)}</div>
-      <div class="l">${o.location||'—'}</div>
-    </div>
-  `;
-  grid.appendChild(photoWrap);
-
-  const side = document.createElement('div');
-  side.className = 'side-panel';
-  const items = o.itemIds.map(id=>state.items.find(x=>x.id===id)).filter(Boolean);
-  side.innerHTML = `<h3 class="serif">🏷️ 착용 아이템 (${items.length})</h3>`;
-  if(items.length===0){
-    side.innerHTML += `<div class="page-desc">등록된 아이템이 없어요</div>`;
-  } else {
-    const gridEl = document.createElement('div');
-    gridEl.className = 'side-items';
-    items.forEach(it=>{
-      const t = document.createElement('div');
-      t.className = 'side-item-thumb';
-      t.innerHTML = `<img src="${it.photo}"/><div class="cap"><div class="cat">${CAT_ICON[it.category]||''} ${it.category}</div><div class="nm">${it.brand||it.name||'아이템'}</div></div>`;
-      t.addEventListener('click', ()=>{ state.selectedItemId = it.id; render(); });
-      gridEl.appendChild(t);
-    });
-    side.appendChild(gridEl);
-  }
-  grid.appendChild(side);
-  wrap.appendChild(grid);
-
-  head.querySelector('#back-cal').addEventListener('click', ()=>{ state.view='calendar'; render(); });
-  head.querySelector('#del-outfit').addEventListener('click', ()=>{
-    if(confirm('이 코디 기록을 삭제할까요? (아이템 정보는 유지됩니다)')){
-      state.outfits = state.outfits.filter(x=>x.id!==o.id);
-      state.view='calendar';
-      saveState();
-      render();
-    }
-  });
-
-  return wrap;
-}
-
-/* ============ ITEM DETAIL MODAL (tag card) ============ */
-function renderItemModal(){
-  const it = state.items.find(x=>x.id===state.selectedItemId);
-  const bg = document.createElement('div');
-  bg.className = 'modal-bg';
-  if(!it){ state.selectedItemId=null; return bg; }
-  const wrap = document.createElement('div');
-  wrap.className = 'modal-wrap';
-  const freq = outfitsUsingItem(it.id);
-  wrap.innerHTML = `
-    <button class="modal-close" id="close-item-modal">×</button>
-    <div class="tagcard">
-      <img class="tagcard-photo" src="${it.photo}"/>
-      <div class="tagcard-body">
-        <div class="tagcard-punch"></div>
-        <div class="tagcard-brand">${CAT_ICON[it.category]||''} ${it.category} · ${it.brand || '브랜드 미상'}</div>
-        <div class="tagcard-name serif">${it.name || '이름 미등록'}</div>
-        <div class="tagcard-row"><div class="k">품번</div><div class="v">${it.modelNo || '-'}</div></div>
-        <div class="tagcard-row"><div class="k">구매일</div><div class="v">${it.purchaseDate ? fmtDate(it.purchaseDate) : '-'}</div></div>
-        <div class="tagcard-row"><div class="k">구매 가격</div><div class="v">${fmtWon(it.price)}</div></div>
-        <div class="tagcard-freq">착용 코디 횟수 <b>${freq}회</b></div>
-      </div>
-    </div>
-  `;
-  bg.appendChild(wrap);
-  bg.addEventListener('click', (e)=>{ if(e.target===bg){ state.selectedItemId=null; render(); } });
-  wrap.querySelector('#close-item-modal').addEventListener('click', ()=>{ state.selectedItemId=null; render(); });
-  return bg;
-}
-
-/* ============ GALLERY VIEW ============ */
-function renderGalleryView(){
-  const wrap = document.createElement('div');
-  const head = document.createElement('div');
-  head.className = 'page-head';
-  head.innerHTML = `
-    <div>
-      <h1 class="page-title serif">아이템 갤러리</h1>
-      <div class="page-desc">브랜드별로 모아봤어요 — 카테고리, 검색, 정렬로 좁혀보세요</div>
-    </div>
-  `;
-  wrap.appendChild(head);
-
-  const tools = document.createElement('div');
-  tools.className = 'gallery-tools';
-  tools.innerHTML = `
-    <div class="search-box">
-      <span class="ico">🔍</span>
-      <input type="text" id="g-search" placeholder="브랜드, 제품명, 품번 검색" value="${state.galleryQuery}"/>
-    </div>
-    <select class="chip-select" id="g-cat">
-      <option value="all">전체 카테고리</option>
-      ${CATS.map(c=>`<option value="${c}" ${state.galleryCat===c?'selected':''}>${CAT_ICON[c]} ${c}</option>`).join('')}
-    </select>
-    <div class="sort-tabs">
-      <button class="sort-tab ${state.gallerySort==='freq'?'active':''}" data-sort="freq">자주 입은 순</button>
-      <button class="sort-tab ${state.gallerySort==='recent'?'active':''}" data-sort="recent">최근 등록순</button>
-      <button class="sort-tab ${state.gallerySort==='purchase'?'active':''}" data-sort="purchase">구매일순</button>
-    </div>
-  `;
-  wrap.appendChild(tools);
-
-  let list = state.items.slice();
-  const q = state.galleryQuery.trim().toLowerCase();
-  if(q){
-    list = list.filter(it => (it.brand||'').toLowerCase().includes(q) || (it.name||'').toLowerCase().includes(q) || (it.modelNo||'').toLowerCase().includes(q));
-  }
-  if(state.galleryCat !== 'all') list = list.filter(it=>it.category===state.galleryCat);
-
-  if(list.length===0){
-    const empty = document.createElement('div');
-    empty.className = 'empty';
-    empty.innerHTML = `<div class="big-tag"></div><p>${state.items.length===0 ? '아직 등록된 아이템이 없어요' : '조건에 맞는 아이템이 없어요'}</p>`;
-    if(state.items.length===0){
-      const btn = document.createElement('button');
-      btn.className = 'btn btn-brass btn-sm';
-      btn.textContent = '코디 등록하러 가기';
-      btn.addEventListener('click', ()=>{
-        state.draft = { date: todayStr(), location:'', photo:null, itemIds:[] };
-        state.view='upload'; render();
-      });
-      empty.appendChild(btn);
-    }
-    wrap.appendChild(empty);
-  } else {
-    // group by brand, brand headers sorted alphabetically, unbranded last
-    const groups = new Map();
-    list.forEach(it=>{
-      const key = (it.brand && it.brand.trim()) ? it.brand.trim() : '브랜드 미상';
-      if(!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(it);
-    });
-    const brandNames = Array.from(groups.keys()).sort((a,b)=>{
-      if(a==='브랜드 미상') return 1;
-      if(b==='브랜드 미상') return -1;
-      return a.localeCompare(b, 'ko');
-    });
-
-    const container = document.createElement('div');
-    container.className = 'brand-groups';
-    brandNames.forEach(brand=>{
-      const its = sortItems(groups.get(brand), state.gallerySort);
-      const section = document.createElement('div');
-      section.className = 'brand-group';
-      section.innerHTML = `<div class="brand-group-head"><span class="bg-name serif">${brand}</span><span class="bg-count">${its.length}개</span></div>`;
-      const g = document.createElement('div');
-      g.className = 'item-grid';
-      its.forEach(it=>{
-        const c = document.createElement('div');
-        c.className = 'item-card';
-        c.innerHTML = `
-          <img src="${it.photo}"/>
-          <div class="ic-body">
-            <div class="ic-cat">${CAT_ICON[it.category]||''} ${it.category}</div>
-            <div class="ic-name">${it.name || '이름 미등록'}</div>
-            <div class="ic-freq">${outfitsUsingItem(it.id)}회 착용</div>
-          </div>
-        `;
-        c.addEventListener('click', ()=>{ state.selectedItemId = it.id; render(); });
-        g.appendChild(c);
-      });
-      section.appendChild(g);
-      container.appendChild(section);
-    });
-    wrap.appendChild(container);
-  }
-
-  tools.querySelector('#g-search').addEventListener('input', e=>{ state.galleryQuery=e.target.value; render(); });
-  tools.querySelector('#g-cat').addEventListener('change', e=>{ state.galleryCat=e.target.value; render(); });
-  tools.querySelectorAll('[data-sort]').forEach(b=>{
-    b.addEventListener('click', ()=>{ state.gallerySort=b.dataset.sort; render(); });
-  });
-
-  return wrap;
-}
-
-/* ============ SYNC CODE SETUP (firebase 연동 최초 1회) ============ */
+/* ============================================================
+   기기 연동 코드 설정
+   ============================================================ */
 function generateCode(){ return Math.random().toString(36).slice(2,8); }
-
 function renderSyncSetup(){
-  const app = document.getElementById('app');
-  app.innerHTML = '';
   const suggested = generateCode();
   const wrap = document.createElement('div');
-  wrap.style.cssText = 'max-width:380px;margin:70px auto;padding:0 20px;';
+  wrap.className = 'flex flex-col justify-center h-screen px-6 max-w-md mx-auto';
   wrap.innerHTML = `
-    <h2 class="serif" style="margin-bottom:6px;">기기 연동 코드</h2>
-    <div class="page-desc" style="margin-bottom:18px; line-height:1.5;">아이폰과 아이패드에 <b>같은 코드</b>를 입력하면 데이터가 하나로 이어져요.<br/>처음이라면 아래 추천 코드를 그대로 쓰거나 원하는 코드를 입력하세요.</div>
-    <div class="field">
-      <label>연동 코드</label>
-      <input type="text" id="sync-code-input" placeholder="예: ${suggested}" style="width:100%;padding:10px 12px;border:1.4px solid var(--line);border-radius:9px;font-size:16px;background:var(--paper-soft);"/>
-    </div>
-    <button class="btn btn-brass" id="sync-start" style="width:100%;">시작하기</button>
-    <div class="page-desc" style="margin-top:14px; line-height:1.5;">이 코드는 이 기기에 저장돼서 다음부터는 안 물어봐요.<br/>다른 기기(아이패드 등)에서도 <b>정확히 같은 코드</b>를 입력해야 데이터가 연동돼요.</div>
+    <h2 class="text-xl font-bold text-gray-950 mb-2">기기 연동 코드</h2>
+    <p class="text-xs text-gray-700/80 leading-relaxed mb-5">아이폰과 아이패드에 <b>같은 코드</b>를 입력하면 데이터가 하나로 이어져요.<br/>처음이라면 아래 추천 코드를 그대로 쓰거나 원하는 코드를 입력하세요.</p>
+    <label class="text-xs font-bold text-gray-800">연동 코드</label>
+    <input type="text" id="sync-code-input" placeholder="예: ${suggested}" class="w-full mt-1 mb-4 px-3 py-3 rounded-xl border border-gray-200 bg-white text-base"/>
+    <button id="sync-start" class="w-full py-3 bg-gray-900 text-white font-bold rounded-2xl text-sm">시작하기</button>
+    <p class="text-[11px] text-gray-600/70 mt-4 leading-relaxed">이 코드는 이 기기에 저장돼서 다음부터는 안 물어봐요.<br/>다른 기기(아이패드 등)에서도 <b>정확히 같은 코드</b>를 입력해야 데이터가 연동돼요.</p>
   `;
-  app.appendChild(wrap);
   wrap.querySelector('#sync-start').addEventListener('click', async ()=>{
     let code = wrap.querySelector('#sync-code-input').value.trim();
     if(!code) code = suggested;
@@ -1106,16 +1441,22 @@ function renderSyncSetup(){
     if(!code){ alert('코드를 입력해주세요.'); return; }
     try{ localStorage.setItem('tagbook-sync-code', code); }catch(e){}
     state.syncCode = code;
-    document.getElementById('app').innerHTML = '<div style="padding:80px 20px;text-align:center;color:#6E6E73;font-size:13.5px;">불러오는 중…</div>';
+    const app = document.getElementById('app');
+    app.innerHTML = '<div class="flex items-center justify-center h-screen text-sm text-gray-700/70">불러오는 중…</div>';
     await loadState();
     render();
   });
+  return wrap;
 }
 
+/* ============================================================
+   INIT
+   ============================================================ */
 async function init(){
-  document.getElementById('app').innerHTML = '<div style="padding:80px 20px;text-align:center;color:#6E6E73;font-size:13.5px;">불러오는 중…</div>';
+  const app = document.getElementById('app');
+  app.innerHTML = '<div class="flex items-center justify-center h-screen text-sm text-gray-700/70">불러오는 중…</div>';
   if(firebaseReady && !state.syncCode){
-    renderSyncSetup();
+    render();
     return;
   }
   await loadState();
