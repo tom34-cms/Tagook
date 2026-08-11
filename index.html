@@ -139,6 +139,7 @@ const state = {
 
   // modal stack
   coordiDetailId: null,
+  fullscreenPhoto: null,        // 전체화면으로 보고 있는 사진 URL (null이면 안 보임)
   coordiFilterCat: 'all',      // 코디 상세에서 아이템 목록 카테고리 필터
   itemBriefId: null,
   itemFullId: null,
@@ -205,7 +206,35 @@ function parseSizeNote(note){
   });
   return pairs;
 }
-function readFileAsDataURL(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(file); }); }
+// 사진을 업로드하면 캔버스로 리사이즈+재압축해서 data URL로 반환.
+// 휴대폰 카메라 원본(수 MB)을 그대로 저장하면 localStorage 용량 제한을 넘어 저장이 조용히 실패할 수 있어서,
+// 긴 변 기준 maxDim으로 축소하고 JPEG로 재인코딩해 용량을 크게 줄인다.
+function readFileAsDataURL(file, maxDim = 1280, quality = 0.82){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if(width > maxDim || height > maxDim){
+          if(width >= height){ height = Math.round(height * (maxDim / width)); width = maxDim; }
+          else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+        }
+        try{
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        }catch(e){ resolve(reader.result); } // 압축 실패 시 원본이라도 사용
+      };
+      img.onerror = () => resolve(reader.result);
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 // 새 아이템 등록 폼의 빈 초안 생성 (모든 사이즈 필드를 미리 빈 값으로 포함)
 function blankItemForm(cat){
   const category = cat || CAT_MAIN[0];
@@ -225,55 +254,150 @@ function itemToForm(it){
 
 /* ============================================================
    SAVE / LOAD
+   (코디 1개, 아이템 1개를 각각 별도 레코드로 저장 - 예전에는 전체를 문서/키 하나에
+   통째로 저장해서 Firestore의 '문서당 1MB' 제한에 코디 사진 몇 장만 있어도 걸렸음)
    ============================================================ */
+function readLocalIndex(key){
+  try{ const v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v : []; }
+  catch(e){ return []; }
+}
+function addToLocalIndex(key, id){
+  const arr = readLocalIndex(key);
+  if(!arr.includes(id)){ arr.push(id); localStorage.setItem(key, JSON.stringify(arr)); }
+}
+function removeFromLocalIndex(key, id){
+  localStorage.setItem(key, JSON.stringify(readLocalIndex(key).filter(x=>x!==id)));
+}
+
+async function saveOutfitRecord(outfit){
+  if(state.storageMode === 'firebase'){
+    try{ await db.collection('tagbook').doc(state.syncCode).collection('outfits').doc(outfit.id).set(outfit); }
+    catch(e){ console.error('코디 저장 실패:', e); alert('코디 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
+  } else if(state.storageMode === 'cloud'){
+    try{ await window.storage.set('outfit:'+outfit.id, JSON.stringify(outfit), false); }
+    catch(e){ console.error('코디 저장 실패:', e); alert('코디 저장에 실패했어요. 잠시 후 다시 시도해주세요.'); }
+  } else if(state.storageMode === 'local'){
+    try{ localStorage.setItem('tagbook-outfit-'+outfit.id, JSON.stringify(outfit)); addToLocalIndex('tagbook-outfit-ids', outfit.id); }
+    catch(e){ console.error('코디 저장 실패:', e); alert('저장에 실패했어요. 브라우저 저장 공간이 가득 찼을 수 있어요.'); }
+  }
+}
+async function deleteOutfitRecord(id){
+  if(state.storageMode === 'firebase'){
+    try{ await db.collection('tagbook').doc(state.syncCode).collection('outfits').doc(id).delete(); }
+    catch(e){ console.error('코디 삭제 실패:', e); }
+  } else if(state.storageMode === 'cloud'){
+    try{ await window.storage.delete('outfit:'+id, false); }catch(e){ console.error('코디 삭제 실패:', e); }
+  } else if(state.storageMode === 'local'){
+    try{ localStorage.removeItem('tagbook-outfit-'+id); removeFromLocalIndex('tagbook-outfit-ids', id); }
+    catch(e){ console.error('코디 삭제 실패:', e); }
+  }
+}
+async function saveItemRecord(item){
+  if(state.storageMode === 'firebase'){
+    try{ await db.collection('tagbook').doc(state.syncCode).collection('items').doc(item.id).set(item); }
+    catch(e){ console.error('아이템 저장 실패:', e); alert('아이템 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
+  } else if(state.storageMode === 'cloud'){
+    try{ await window.storage.set('item:'+item.id, JSON.stringify(item), false); }
+    catch(e){ console.error('아이템 저장 실패:', e); alert('아이템 저장에 실패했어요. 잠시 후 다시 시도해주세요.'); }
+  } else if(state.storageMode === 'local'){
+    try{ localStorage.setItem('tagbook-item-'+item.id, JSON.stringify(item)); addToLocalIndex('tagbook-item-ids', item.id); }
+    catch(e){ console.error('아이템 저장 실패:', e); alert('저장에 실패했어요. 브라우저 저장 공간이 가득 찼을 수 있어요.'); }
+  }
+}
+async function deleteItemRecord(id){
+  if(state.storageMode === 'firebase'){
+    try{ await db.collection('tagbook').doc(state.syncCode).collection('items').doc(id).delete(); }
+    catch(e){ console.error('아이템 삭제 실패:', e); }
+  } else if(state.storageMode === 'cloud'){
+    try{ await window.storage.delete('item:'+id, false); }catch(e){ console.error('아이템 삭제 실패:', e); }
+  } else if(state.storageMode === 'local'){
+    try{ localStorage.removeItem('tagbook-item-'+id); removeFromLocalIndex('tagbook-item-ids', id); }
+    catch(e){ console.error('아이템 삭제 실패:', e); }
+  }
+}
+
 async function loadState(){
   if(firebaseReady && state.syncCode){
     state.storageMode = 'firebase';
     try{
-      const doc = await db.collection('tagbook').doc(state.syncCode).get();
-      if(doc.exists){
-        const data = doc.data();
-        state.outfits = Array.isArray(data.outfits) ? data.outfits : [];
-        state.items = Array.isArray(data.items) ? data.items : [];
+      const parentRef = db.collection('tagbook').doc(state.syncCode);
+      const [outfitsSnap, itemsSnap] = await Promise.all([
+        parentRef.collection('outfits').get(),
+        parentRef.collection('items').get()
+      ]);
+      let outfits = outfitsSnap.docs.map(d=>d.data());
+      let items = itemsSnap.docs.map(d=>d.data());
+      if(outfits.length===0 && items.length===0){
+        // 예전 통짜 문서가 있으면 개별 문서로 1회 이관
+        const legacy = await parentRef.get();
+        if(legacy.exists){
+          const data = legacy.data();
+          outfits = Array.isArray(data.outfits) ? data.outfits : [];
+          items = Array.isArray(data.items) ? data.items : [];
+          for(const o of outfits) await saveOutfitRecord(o);
+          for(const it of items) await saveItemRecord(it);
+        }
       }
+      state.outfits = outfits;
+      state.items = items;
     }catch(e){ console.error('불러오기 실패:', e); }
     return;
   }
   if(typeof window.storage !== 'undefined'){
     state.storageMode = 'cloud';
     try{
-      const res = await window.storage.get('tagbook-data', false);
-      if(res && res.value){
-        const parsed = JSON.parse(res.value);
-        state.outfits = Array.isArray(parsed.outfits) ? parsed.outfits : [];
-        state.items = Array.isArray(parsed.items) ? parsed.items : [];
+      const [outfitList, itemList] = await Promise.all([
+        window.storage.list('outfit:', false),
+        window.storage.list('item:', false)
+      ]);
+      let outfits = [];
+      let items = [];
+      if(outfitList && outfitList.keys && outfitList.keys.length){
+        for(const k of outfitList.keys){ try{ const r = await window.storage.get(k, false); if(r && r.value) outfits.push(JSON.parse(r.value)); }catch(e){} }
       }
+      if(itemList && itemList.keys && itemList.keys.length){
+        for(const k of itemList.keys){ try{ const r = await window.storage.get(k, false); if(r && r.value) items.push(JSON.parse(r.value)); }catch(e){} }
+      }
+      if(outfits.length===0 && items.length===0){
+        try{
+          const legacy = await window.storage.get('tagbook-data', false);
+          if(legacy && legacy.value){
+            const parsed = JSON.parse(legacy.value);
+            outfits = Array.isArray(parsed.outfits) ? parsed.outfits : [];
+            items = Array.isArray(parsed.items) ? parsed.items : [];
+            for(const o of outfits) await saveOutfitRecord(o);
+            for(const it of items) await saveItemRecord(it);
+          }
+        }catch(e){}
+      }
+      state.outfits = outfits;
+      state.items = items;
     }catch(e){ /* 저장된 데이터 없음 */ }
     return;
   }
   try{
-    const raw = localStorage.getItem('tagbook-data');
-    if(raw){
-      const parsed = JSON.parse(raw);
-      state.outfits = Array.isArray(parsed.outfits) ? parsed.outfits : [];
-      state.items = Array.isArray(parsed.items) ? parsed.items : [];
+    let outfits = readLocalIndex('tagbook-outfit-ids').map(id=>{
+      try{ return JSON.parse(localStorage.getItem('tagbook-outfit-'+id)); }catch(e){ return null; }
+    }).filter(Boolean);
+    let items = readLocalIndex('tagbook-item-ids').map(id=>{
+      try{ return JSON.parse(localStorage.getItem('tagbook-item-'+id)); }catch(e){ return null; }
+    }).filter(Boolean);
+    if(outfits.length===0 && items.length===0){
+      const raw = localStorage.getItem('tagbook-data');
+      if(raw){
+        const parsed = JSON.parse(raw);
+        outfits = Array.isArray(parsed.outfits) ? parsed.outfits : [];
+        items = Array.isArray(parsed.items) ? parsed.items : [];
+        outfits.forEach(o=>{ localStorage.setItem('tagbook-outfit-'+o.id, JSON.stringify(o)); });
+        items.forEach(it=>{ localStorage.setItem('tagbook-item-'+it.id, JSON.stringify(it)); });
+        localStorage.setItem('tagbook-outfit-ids', JSON.stringify(outfits.map(o=>o.id)));
+        localStorage.setItem('tagbook-item-ids', JSON.stringify(items.map(it=>it.id)));
+      }
     }
+    state.outfits = outfits;
+    state.items = items;
     state.storageMode = 'local';
   }catch(e){ state.storageMode = 'none'; }
-}
-async function saveState(){
-  if(state.storageMode === 'firebase'){
-    try{ await db.collection('tagbook').doc(state.syncCode).set({ outfits: state.outfits, items: state.items, updatedAt: Date.now() }); }
-    catch(e){ console.error('저장 실패:', e); }
-    return;
-  }
-  if(state.storageMode === 'cloud'){
-    try{ await window.storage.set('tagbook-data', JSON.stringify({ outfits: state.outfits, items: state.items }), false); }
-    catch(e){ console.error('저장 실패:', e); }
-  } else if(state.storageMode === 'local'){
-    try{ localStorage.setItem('tagbook-data', JSON.stringify({ outfits: state.outfits, items: state.items })); }
-    catch(e){ console.error('저장 실패:', e); }
-  }
 }
 
 function sortItems(list, key, dir){
@@ -359,6 +483,7 @@ function render(){
   if(state.categoryPopupOpen) app.appendChild(renderCategoryPopup());
   if(state.sizePopupOpen) app.appendChild(renderSizePopup());
   if(state.confirmDialog) app.appendChild(renderConfirmModal());
+  if(state.fullscreenPhoto) app.appendChild(renderFullscreenPhoto());
 
   if(state.monthPickerOpen){
     setTimeout(()=>{
@@ -905,7 +1030,7 @@ function renderSizeCompare(){
     const tableWrap = document.createElement('div');
     tableWrap.className = 'overflow-x-auto custom-scroll bg-white rounded-2xl border border-gray-100';
     const table = document.createElement('table');
-    table.className = 'text-xs border-collapse table-fixed';
+    table.className = 'text-xs border-collapse table-fixed w-full';
 
     // 필드 타입별 고정 너비 - main(대분류) 하나에 속한 모든 소분류 표가 이 값을 공유하므로
     // 스니커즈/로퍼처럼 서로 다른 소분류라도 열 너비가 항상 동일하게 정렬됨
@@ -916,7 +1041,7 @@ function renderSizeCompare(){
     }
 
     const thead = document.createElement('thead');
-    let headCells = `<th class="p-2 sticky left-0 bg-white font-bold w-16 text-center">아이템</th><th class="p-2 font-bold whitespace-nowrap text-left w-20">브랜드</th>`;
+    let headCells = `<th class="p-2 sticky left-0 bg-white font-bold w-16 whitespace-nowrap text-center">아이템</th><th class="p-2 font-bold whitespace-nowrap text-left w-20">브랜드</th>`;
     if(fields.length){
       fields.forEach((f,i)=>{
         headCells += `<th class="p-2 font-bold whitespace-nowrap text-center ${fieldWidthClass(f)}">${f.label}</th>`;
@@ -933,7 +1058,7 @@ function renderSizeCompare(){
       tr.className = 'border-t border-gray-100 cursor-pointer active:bg-gray-50';
       let cells = `
         <td class="p-2 sticky left-0 bg-white text-center w-16"><img src="${it.photo}" style="aspect-ratio:${SQUARE_ASPECT}" class="w-9 object-cover rounded-lg mx-auto" /></td>
-        <td class="p-2 text-gray-900 font-semibold text-left truncate w-20">${it.brand || '브랜드 미상'}</td>
+        <td class="p-2 w-20 align-middle"><div class="text-gray-900 font-semibold text-left truncate">${it.brand || '브랜드 미상'}</div></td>
       `;
       if(fields.length){
         fields.forEach(f=>{ cells += `<td class="p-2 text-gray-700 whitespace-nowrap text-center ${fieldWidthClass(f)}">${it[f.key] || '-'}</td>`; });
@@ -1110,12 +1235,13 @@ function renderCoordiDetailModal(){
         <p class="font-bold text-[11px] text-gray-400">OOTD</p>
       </div>
       <div class="flex items-center gap-3">
+        <button id="edit-coordi" class="text-xs text-gray-600 font-semibold">수정</button>
         <button id="del-coordi" class="text-xs text-red-500 font-semibold">삭제</button>
         <button id="close-coordi" class="text-xl font-bold p-1">✕</button>
       </div>
     </div>
     <div class="p-4 space-y-4">
-      <img src="${o.photo}" class="w-full h-96 object-cover rounded-3xl shadow-md" />
+      <img id="coordi-photo" src="${o.photo}" class="w-full h-96 object-cover rounded-3xl shadow-md cursor-zoom-in" />
       ${o.location ? `<div class="flex items-center gap-1.5 text-sm text-gray-700"><img src="${PIN_ICON}" class="w-3.5 h-3.5"/><span>${o.location}</span></div>` : ''}
       <div>
         <label class="text-xs font-bold text-gray-800">아이템 (${items.length}개)</label>
@@ -1147,14 +1273,36 @@ function renderCoordiDetailModal(){
     list.appendChild(card);
   });
   bg.querySelector('#close-coordi').addEventListener('click', ()=>{ state.coordiDetailId=null; render(); });
+  bg.querySelector('#coordi-photo').addEventListener('click', ()=>{ state.fullscreenPhoto = o.photo; render(); });
+  bg.querySelector('#edit-coordi').addEventListener('click', ()=>{
+    state.registerDraft = { date: o.date, location: o.location || '', photo: o.photo, itemIds: [...o.itemIds], editId: o.id };
+    state.coordiDetailId = null;
+    render();
+  });
   bg.querySelector('#del-coordi').addEventListener('click', ()=>{
     askConfirm('이 코디 기록을 삭제할까요? (아이템 정보는 유지됩니다)', ()=>{
       state.outfits = state.outfits.filter(x=>x.id!==o.id);
       state.coordiDetailId = null;
-      saveState();
+      deleteOutfitRecord(o.id);
       render();
     });
   });
+  return bg;
+}
+
+/* ============================================================
+   전체화면 사진 뷰어 (코디 사진 탭하면 열림)
+   ============================================================ */
+function renderFullscreenPhoto(){
+  const bg = document.createElement('div');
+  bg.className = 'fixed inset-0 bg-black z-50 flex items-center justify-center fade-enter';
+  bg.innerHTML = `
+    <button id="close-fullscreen" class="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 text-white text-2xl font-bold w-10 h-10 flex items-center justify-center z-10">✕</button>
+    <img src="${state.fullscreenPhoto}" class="max-w-full max-h-full object-contain" />
+  `;
+  const close = ()=>{ state.fullscreenPhoto = null; render(); };
+  bg.querySelector('#close-fullscreen').addEventListener('click', close);
+  bg.addEventListener('click', e=>{ if(e.target === bg) close(); });
   return bg;
 }
 
@@ -1245,15 +1393,17 @@ function renderItemFullModal(){
   });
   bg.querySelector('#toggle-owned').addEventListener('click', ()=>{
     it.owned = it.owned===false ? true : false;
-    saveState();
+    saveItemRecord(it);
     render();
   });
   bg.querySelector('#del-item').addEventListener('click', ()=>{
     askConfirm('이 아이템을 삭제할까요? 관련된 코디 기록에서도 제거됩니다.', ()=>{
+      const affectedOutfits = state.outfits.filter(o=>o.itemIds.includes(it.id));
       state.items = state.items.filter(x=>x.id!==it.id);
       state.outfits.forEach(o=>{ o.itemIds = o.itemIds.filter(id=>id!==it.id); });
       state.itemFullId = null;
-      saveState();
+      deleteItemRecord(it.id);
+      affectedOutfits.forEach(o=> saveOutfitRecord(o));
       render();
     });
   });
@@ -1269,7 +1419,7 @@ function renderOutfitRegisterView(){
   bg.className = 'fixed inset-0 bg-[#F2F2F3] z-40 flex flex-col overflow-y-auto fade-enter';
   bg.innerHTML = `
     <div class="p-4 flex justify-between items-center border-b border-gray-100 bg-[#F2F2F3]/90 backdrop-blur sticky top-0 z-10">
-      <h3 class="font-bold">코디 등록</h3>
+      <h3 class="font-bold">${d.editId ? '코디 수정' : '코디 등록'}</h3>
       <button id="cancel-register" class="text-xl font-bold p-1">✕</button>
     </div>
     <div class="p-4 space-y-4">
@@ -1291,7 +1441,7 @@ function renderOutfitRegisterView(){
         <label class="text-xs font-bold text-gray-800">아이템 (${d.itemIds.length}개)</label>
         <div class="flex flex-wrap gap-3 mt-2" id="chip-list"></div>
       </div>
-      <button id="save-outfit" class="w-full py-3 bg-gray-900 text-white font-bold rounded-2xl text-sm shadow-md mt-2">코디 저장</button>
+      <button id="save-outfit" class="w-full py-3 bg-gray-900 text-white font-bold rounded-2xl text-sm shadow-md mt-2">${d.editId ? '수정 완료' : '코디 저장'}</button>
     </div>
   `;
 
@@ -1329,10 +1479,39 @@ function renderOutfitRegisterView(){
   });
   bg.querySelector('#f-date').addEventListener('input', e=>{ d.date = e.target.value; });
   bg.querySelector('#f-loc').addEventListener('input', e=>{ d.location = e.target.value; });
-  bg.querySelector('#cancel-register').addEventListener('click', ()=>{ state.registerDraft = null; render(); });
+  bg.querySelector('#cancel-register').addEventListener('click', ()=>{
+    const editId = d.editId;
+    state.registerDraft = null;
+    if(editId) state.coordiDetailId = editId;
+    render();
+  });
   bg.querySelector('#save-outfit').addEventListener('click', ()=>{
     if(!d.photo){ alert('코디 전체 사진을 업로드해주세요.'); return; }
     if(!d.date){ alert('날짜를 선택해주세요.'); return; }
+
+    if(d.editId){
+      // 수정 모드: 같은 날짜로 옮기려는 게 '다른' 기존 코디와 겹치는지만 확인
+      const dupIdx = state.outfits.findIndex(o=>o.date===d.date && o.id!==d.editId);
+      let removedDupId = null;
+      if(dupIdx>-1){
+        if(!confirm('해당 날짜에 이미 다른 코디가 있어요. 그 코디를 덮어쓸까요?')) return;
+        removedDupId = state.outfits[dupIdx].id;
+        state.outfits.splice(dupIdx,1);
+      }
+      const idx = state.outfits.findIndex(o=>o.id===d.editId);
+      let savedOutfit = null;
+      if(idx>-1){
+        savedOutfit = { id: d.editId, date:d.date, location:d.location, photo:d.photo, itemIds:[...d.itemIds] };
+        state.outfits[idx] = savedOutfit;
+      }
+      state.registerDraft = null;
+      state.coordiDetailId = d.editId;
+      if(removedDupId) deleteOutfitRecord(removedDupId);
+      if(savedOutfit) saveOutfitRecord(savedOutfit);
+      render();
+      return;
+    }
+
     const existingIdx = state.outfits.findIndex(o=>o.date===d.date);
     const outfit = { id: uid('outfit'), date:d.date, location:d.location, photo:d.photo, itemIds:[...d.itemIds] };
     if(existingIdx>-1){
@@ -1344,7 +1523,7 @@ function renderOutfitRegisterView(){
     }
     state.registerDraft = null;
     state.coordiDetailId = outfit.id;
-    saveState();
+    saveOutfitRecord(outfit);
     render();
   });
 
@@ -1532,14 +1711,14 @@ function renderItemFlowModal(){
         if(target){ Object.assign(target, payload); }
         state.itemFlow = null;
         state.itemFullId = flow.itemId;
-        saveState();
+        if(target) saveItemRecord(target);
         render();
       } else {
         const newItem = Object.assign({ id: uid('item'), owned:true }, payload);
         state.items.push(newItem);
         if(state.registerDraft) state.registerDraft.itemIds.push(newItem.id);
         state.itemFlow = null;
-        saveState();
+        saveItemRecord(newItem);
         render();
       }
     });
