@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="MY STYLING" />
 <meta name="format-detection" content="telephone=no" />
-<link rel="apple-touch-icon" href="apple-touch-icon.PNG" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <title>MY STYLING · 태그북</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -30,7 +30,7 @@
   @keyframes fadeIn{ from{ opacity:0;} to{ opacity:1;} }
 </style>
 </head>
-<body class="flex flex-col h-screen max-w-md mx-auto border-x border-gray-100/50 shadow-2xl relative overflow-hidden">
+<body class="flex flex-col h-dvh max-w-md mx-auto border-x border-gray-100/50 shadow-2xl relative overflow-hidden">
 <div id="app" class="contents"></div>
 
 <script>
@@ -62,6 +62,11 @@ try{
 const CAT_MAIN = ['신발','상의','아우터','하의','가방','모자','악세서리','기타'];
 const CATS = CAT_MAIN; // 구코드 호환용 별칭
 const CAT_ICON = {'신발':'👟','상의':'👕','아우터':'🧥','하의':'👖','가방':'👜','모자':'🧢','악세서리':'⌚','기타':'✦'};
+// 카테고리별 사진 비율 (가로/세로). 신발·가방처럼 옆으로 넓은 제품과 상의·하의처럼 세로로 긴 제품을 구분
+// 아이템 사진 비율: 카테고리별로 다르게 하지 않고 전부 동일 비율로 통일 (더 바이닐 하우스=상의 기준이었던 3:4)
+// 착장빈도·사이즈 비교 화면은 예외로 1:1 정사각형 사용
+const ITEM_PHOTO_ASPECT = '3/4';
+const SQUARE_ASPECT = '1/1';
 const CAT_SUB = {
   '신발': ['스니커즈','로퍼','구두','부츠/워커','샌들/쪼리','뮬','스포츠화','패딩/퍼 신발','기타 신발'],
   '상의': ['반소매 티셔츠','긴소매 티셔츠','스웨트/맨투맨','후드 티셔츠/후드집업','셔츠/블라우스(반소매셔츠)','니트/스웨터','피케/카라 티셔츠','민소매/슬리브리스','기타 상의'],
@@ -128,6 +133,7 @@ const state = {
   searchCat: 'all',
   searchSort: 'recent',        // recent | purchase | price
   searchSortDir: 'desc',       // asc | desc (구매일/구매가 정렬 방향, 누를 때마다 토글)
+  searchQuery: '',              // ITEM 탭 상단 검색창 (브랜드/제품명 접두어 검색)
   compareCat: null,            // 사이즈 비교에서 선택된 대분류
   compareSubCat: null,          // 사이즈 비교에서 선택된 소분류 (null이면 전체)
 
@@ -320,6 +326,14 @@ function sortBySize(list, main){
    ============================================================ */
 function render(){
   const app = document.getElementById('app');
+
+  // 재렌더링(innerHTML 초기화) 시 입력 중이던 텍스트 필드의 포커스/커서 위치를 보존
+  const activeEl = document.activeElement;
+  let focusInfo = null;
+  if(activeEl && app.contains(activeEl) && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.id){
+    focusInfo = { id: activeEl.id, start: activeEl.selectionStart, end: activeEl.selectionEnd };
+  }
+
   app.innerHTML = '';
 
   if(outsideClickHandler){ document.removeEventListener('click', outsideClickHandler); outsideClickHandler = null; }
@@ -330,7 +344,7 @@ function render(){
   }
 
   const shell = document.createElement('div');
-  shell.className = 'flex flex-col h-screen w-full relative';
+  shell.className = 'flex flex-col h-dvh w-full relative';
   shell.appendChild(renderHeader());
   shell.appendChild(renderMain());
   shell.appendChild(renderFAB());
@@ -356,6 +370,14 @@ function render(){
       document.addEventListener('click', outsideClickHandler, { once:true });
     }, 0);
   }
+
+  if(focusInfo){
+    const el = document.getElementById(focusInfo.id);
+    if(el){
+      el.focus();
+      try{ el.setSelectionRange(focusInfo.start, focusInfo.end); }catch(e){}
+    }
+  }
 }
 
 /* ============================================================
@@ -363,7 +385,7 @@ function render(){
    ============================================================ */
 function renderHeader(){
   const header = document.createElement('header');
-  header.className = 'px-4 py-3 flex justify-between items-center bg-white/80 backdrop-blur border-b border-gray-200 z-20 relative';
+  header.className = 'px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] flex justify-between items-center bg-white/80 backdrop-blur border-b border-gray-200 z-20 relative';
 
   const left = document.createElement('div');
   if(state.tab === 'calendar'){
@@ -581,38 +603,134 @@ function renderGalleryTab(){
 }
 
 /* ---------- SEARCH TAB (돋보기: 필터별 아이템) ---------- */
+// 아이템 그리드 카드 (OWN/PAST 배지가 브랜드·제품명 텍스트와 겹치지 않도록 pr로 여백 확보 + truncate로 ...처리)
+// 사진 비율은 카테고리에 맞게 (신발/가방은 가로로, 상의/하의는 세로로 등)
+function renderItemGridCard(it){
+  const c = document.createElement('div');
+  c.className = 'bg-white p-3 rounded-2xl border border-gray-100 relative cursor-pointer';
+  c.innerHTML = `
+    <span class="absolute bottom-2 right-2 text-[10px] ${it.owned!==false?'bg-emerald-100 text-emerald-800':'bg-gray-100 text-gray-500'} px-2 py-0.5 rounded-full font-bold">${it.owned!==false?'OWN':'PAST'}</span>
+    <img src="${it.photo}" style="aspect-ratio:${ITEM_PHOTO_ASPECT}" class="w-full object-cover rounded-lg mb-2" />
+    <p class="text-[10px] text-gray-400 font-semibold">${CAT_ICON[it.category]||''} ${it.category}</p>
+    <p class="text-xs font-bold text-gray-900 truncate pr-9">${it.brand || it.name || '브랜드 미상'}</p>
+    ${it.brand && it.name ? `<p class="text-[10px] text-gray-400 truncate pr-9">${it.name}</p>` : ''}
+  `;
+  c.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
+  return c;
+}
+
+// 구매일/구매가 정렬 토글 버튼 행 (전체·카테고리 화면 공통 사용)
+function buildSortRow(){
+  const sortRow = document.createElement('div');
+  sortRow.className = 'flex gap-2 shrink-0';
+  function sortBtnHTML(key,label){
+    const active = state.searchSort===key;
+    const arrow = active ? (state.searchSortDir==='asc' ? '▲' : '▼') : '';
+    return `<button data-sortkey="${key}" class="cat-sort-btn px-3 py-1 rounded-full text-[11px] font-bold ${active?'bg-gray-900 text-white':'bg-gray-100 text-gray-500'}">${label} ${arrow}</button>`;
+  }
+  sortRow.innerHTML = sortBtnHTML('purchase','구매일') + sortBtnHTML('price','구매가');
+  sortRow.querySelectorAll('.cat-sort-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const key = b.dataset.sortkey;
+      if(state.searchSort === key){ state.searchSortDir = state.searchSortDir === 'asc' ? 'desc' : 'asc'; }
+      else { state.searchSort = key; state.searchSortDir = 'desc'; }
+      render();
+    });
+  });
+  return sortRow;
+}
+
+// 검색어(브랜드/제품명 접두어)에 매칭되는지 확인 - 대소문자 무시, 단어 단위 접두어 매칭
+function itemMatchesQuery(it, q){
+  const brand = (it.brand || '').toLowerCase();
+  const name = (it.name || '').toLowerCase();
+  const hay = (brand + ' ' + name).trim();
+  if(hay.startsWith(q)) return true;
+  return hay.split(/\s+/).some(w => w.startsWith(q));
+}
+
 function renderSearchTab(){
   const wrap = document.createElement('section');
   wrap.className = 'space-y-4';
+
+  // 상단 검색창 (브랜드/제품명 검색)
+  const searchBar = document.createElement('div');
+  searchBar.className = 'relative';
+  searchBar.innerHTML = `
+    <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">🔍</span>
+    <input type="text" id="item-search-input" placeholder="브랜드, 제품명 검색" value="${state.searchQuery || ''}" class="w-full bg-gray-100 rounded-full pl-9 pr-4 py-2.5 text-sm outline-none placeholder-gray-400" />
+  `;
+  wrap.appendChild(searchBar);
+
   const area = document.createElement('div');
   area.id = 'search-content-area';
   wrap.appendChild(area);
+
+  searchBar.querySelector('#item-search-input').addEventListener('input', e=>{
+    state.searchQuery = e.target.value;
+    render();
+  });
 
   if(state.items.length === 0){
     area.innerHTML = `<div class="text-center py-20 text-gray-700/60 text-sm">아직 등록된 아이템이 없어요.<br/>코디를 등록하면서 아이템을 함께 추가해보세요.</div>`;
     return wrap;
   }
 
+  const query = (state.searchQuery || '').trim().toLowerCase();
+  if(query){
+    const matched = sortItems(state.items.filter(it => itemMatchesQuery(it, query)), state.searchSort, state.searchSortDir);
+    if(matched.length === 0){
+      area.innerHTML = `<div class="text-center py-20 text-gray-700/60 text-sm">'${state.searchQuery}'와 일치하는 아이템이 없어요.</div>`;
+      return wrap;
+    }
+    const label = document.createElement('p');
+    label.className = 'text-xs text-gray-400 font-semibold';
+    label.textContent = `검색 결과 ${matched.length}개`;
+    area.appendChild(label);
+    const grid = document.createElement('div');
+    grid.className = 'grid grid-cols-2 gap-3 mt-3';
+    matched.forEach(it=> grid.appendChild(renderItemGridCard(it)));
+    area.appendChild(grid);
+    return wrap;
+  }
+
   const filter = state.searchFilter;
 
-  if(filter === '전체' || (filter === '카테고리' && state.searchCat === 'all')){
+  if(filter === '전체'){
+    // 필터 드롭다운의 '전체': 개수만 표시 (총 구매가는 표시하지 않음)
     let list = state.items.slice();
     list = sortItems(list, state.searchSort, state.searchSortDir);
+
+    const totalCount = list.length;
+    const topRow = document.createElement('div');
+    topRow.className = 'flex items-center justify-between gap-2';
+    topRow.innerHTML = `<span class="text-xs text-gray-400 font-semibold">전체 총 ${totalCount}개</span>`;
+    topRow.appendChild(buildSortRow());
+    area.appendChild(topRow);
+
     const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-2 gap-3';
-    list.forEach(it=>{
-      const c = document.createElement('div');
-      c.className = 'bg-white p-3 rounded-2xl border border-gray-100 relative cursor-pointer';
-      c.innerHTML = `
-        <span class="absolute bottom-2 right-2 text-[10px] ${it.owned!==false?'bg-emerald-100 text-emerald-800':'bg-gray-100 text-gray-500'} px-2 py-0.5 rounded-full font-bold">${it.owned!==false?'OWN':'PAST'}</span>
-        <img src="${it.photo}" class="w-full h-28 object-cover rounded-lg mb-2" />
-        <p class="text-[10px] text-gray-400 font-semibold">${CAT_ICON[it.category]||''} ${it.category}</p>
-        <p class="text-xs font-bold text-gray-900 truncate">${it.brand || it.name || '브랜드 미상'}</p>
-        ${it.brand && it.name ? `<p class="text-[10px] text-gray-400 truncate">${it.name}</p>` : ''}
-      `;
-      c.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
-      grid.appendChild(c);
-    });
+    grid.className = 'grid grid-cols-2 gap-3 mt-3';
+    list.forEach(it=> grid.appendChild(renderItemGridCard(it)));
+    area.appendChild(grid);
+  } else if(filter === '카테고리' && state.searchCat === 'all'){
+    // 카테고리 팝업에서 '전체' 선택: 다른 카테고리처럼 총 개수 + 총 구매가 + 정렬 표시
+    let list = state.items.slice();
+    list = sortItems(list, state.searchSort, state.searchSortDir);
+
+    const totalCount = list.length;
+    const totalPrice = list.reduce((s,it)=> s + (Number(it.price)||0), 0);
+    const topRow = document.createElement('div');
+    topRow.className = 'flex items-start justify-between gap-2';
+    const totalLabel = document.createElement('div');
+    totalLabel.className = 'flex items-center gap-2 flex-wrap';
+    totalLabel.innerHTML = `<span class="text-xs text-gray-400 font-semibold">전체 총 ${totalCount}개</span><span class="text-xs text-red-500 font-bold">총 구매가 ${totalPrice.toLocaleString('ko-KR')}원</span>`;
+    topRow.appendChild(totalLabel);
+    topRow.appendChild(buildSortRow());
+    area.appendChild(topRow);
+
+    const grid = document.createElement('div');
+    grid.className = 'grid grid-cols-2 gap-3 mt-3';
+    list.forEach(it=> grid.appendChild(renderItemGridCard(it)));
     area.appendChild(grid);
   } else if(filter === '카테고리'){
     // 대분류를 골랐으면 소분류 섹션별로 가로 스크롤 카드 나열
@@ -662,7 +780,7 @@ function renderSearchTab(){
       its.forEach(it=>{
         const card = document.createElement('div');
         card.className = 'w-32 flex-shrink-0 bg-white p-2 rounded-2xl border border-gray-100 cursor-pointer';
-        card.innerHTML = `<img src="${it.photo}" class="w-full h-32 object-cover rounded-lg" /><p class="text-xs font-bold truncate mt-1">${it.brand || '브랜드 미상'}</p><p class="text-[10px] text-gray-400 truncate">${it.name || ''}</p>`;
+        card.innerHTML = `<img src="${it.photo}" style="aspect-ratio:${ITEM_PHOTO_ASPECT}" class="w-full object-cover rounded-lg" /><p class="text-xs font-bold truncate mt-1">${it.brand || '브랜드 미상'}</p><p class="text-[10px] text-gray-400 truncate">${it.name || ''}</p>`;
         card.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
         scroll.appendChild(card);
       });
@@ -703,7 +821,7 @@ function renderSearchTab(){
       its.forEach(it=>{
         const card = document.createElement('div');
         card.className = 'w-32 flex-shrink-0 bg-white p-2 rounded-2xl border border-gray-100 cursor-pointer';
-        card.innerHTML = `<img src="${it.photo}" class="w-full h-20 object-cover rounded-lg" /><p class="text-xs font-semibold truncate mt-1">${it.name || CAT_ICON[it.category]+' '+it.category}</p>`;
+        card.innerHTML = `<img src="${it.photo}" style="aspect-ratio:${ITEM_PHOTO_ASPECT}" class="w-full object-cover rounded-lg" /><p class="text-xs font-semibold truncate mt-1">${it.name || CAT_ICON[it.category]+' '+it.category}</p>`;
         card.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
         scroll.appendChild(card);
       });
@@ -724,16 +842,16 @@ function renderSearchTab(){
     box.innerHTML = `<p class="text-[10px] text-gray-400 font-bold mb-2 tracking-wide">BEST ITEM</p>`;
     list.forEach(it=>{
       const row = document.createElement('div');
-      row.className = 'bg-white p-3 rounded-2xl border border-gray-100 flex items-center justify-between cursor-pointer';
+      row.className = 'bg-white p-3 rounded-2xl border border-gray-100 flex items-center justify-between gap-3 cursor-pointer';
       row.innerHTML = `
-        <div class="flex items-center gap-3">
-          <img src="${it.photo}" class="w-12 h-12 object-cover rounded-lg" />
-          <div>
-            <p class="text-xs font-bold">${it.brand || '브랜드 미상'}</p>
-            <p class="text-[10px] text-gray-400">${it.name || CAT_ICON[it.category]+' '+it.category}</p>
+        <div class="flex items-center gap-3 min-w-0 flex-1">
+          <img src="${it.photo}" style="aspect-ratio:${SQUARE_ASPECT}" class="w-12 flex-shrink-0 object-cover rounded-lg" />
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-bold truncate">${it.brand || '브랜드 미상'}</p>
+            <p class="text-[10px] text-gray-400 truncate">${it.name || CAT_ICON[it.category]+' '+it.category}</p>
           </div>
         </div>
-        <span class="text-xs font-bold text-gray-900">${outfitsUsingItem(it.id)}회</span>
+        <span class="text-xs font-bold text-gray-900 flex-shrink-0">${outfitsUsingItem(it.id)}회</span>
       `;
       row.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
       box.appendChild(row);
@@ -787,16 +905,24 @@ function renderSizeCompare(){
     const tableWrap = document.createElement('div');
     tableWrap.className = 'overflow-x-auto custom-scroll bg-white rounded-2xl border border-gray-100';
     const table = document.createElement('table');
-    table.className = 'text-xs w-full border-collapse';
+    table.className = 'text-xs border-collapse table-fixed';
+
+    // 필드 타입별 고정 너비 - main(대분류) 하나에 속한 모든 소분류 표가 이 값을 공유하므로
+    // 스니커즈/로퍼처럼 서로 다른 소분류라도 열 너비가 항상 동일하게 정렬됨
+    function fieldWidthClass(f){
+      if(f.type === 'select') return 'w-24';
+      if(f.type === 'number') return 'w-14';
+      return 'w-16'; // text (사이즈 라벨 등)
+    }
 
     const thead = document.createElement('thead');
-    let headCells = `<th class="p-2 sticky left-0 bg-white font-bold min-w-[64px] text-center">아이템</th><th class="p-2 font-bold whitespace-nowrap text-left">브랜드</th>`;
+    let headCells = `<th class="p-2 sticky left-0 bg-white font-bold w-16 text-center">아이템</th><th class="p-2 font-bold whitespace-nowrap text-left w-20">브랜드</th>`;
     if(fields.length){
       fields.forEach((f,i)=>{
-        headCells += `<th class="p-2 font-bold whitespace-nowrap text-center">${f.label}</th>`;
+        headCells += `<th class="p-2 font-bold whitespace-nowrap text-center ${fieldWidthClass(f)}">${f.label}</th>`;
       });
     } else {
-      headCells += `<th class="p-2 font-bold whitespace-nowrap text-center">사이즈</th>`;
+      headCells += `<th class="p-2 font-bold whitespace-nowrap text-center w-40">사이즈</th>`;
     }
     thead.innerHTML = `<tr class="text-gray-400 text-center">${headCells}</tr>`;
     table.appendChild(thead);
@@ -806,13 +932,13 @@ function renderSizeCompare(){
       const tr = document.createElement('tr');
       tr.className = 'border-t border-gray-100 cursor-pointer active:bg-gray-50';
       let cells = `
-        <td class="p-2 sticky left-0 bg-white text-center"><img src="${it.photo}" class="w-9 h-9 object-cover rounded-lg mx-auto" /></td>
-        <td class="p-2 text-gray-900 font-semibold whitespace-nowrap text-left">${it.brand || '브랜드 미상'}</td>
+        <td class="p-2 sticky left-0 bg-white text-center w-16"><img src="${it.photo}" style="aspect-ratio:${SQUARE_ASPECT}" class="w-9 object-cover rounded-lg mx-auto" /></td>
+        <td class="p-2 text-gray-900 font-semibold text-left truncate w-20">${it.brand || '브랜드 미상'}</td>
       `;
       if(fields.length){
-        fields.forEach(f=>{ cells += `<td class="p-2 text-gray-700 whitespace-nowrap text-center">${it[f.key] || '-'}</td>`; });
+        fields.forEach(f=>{ cells += `<td class="p-2 text-gray-700 whitespace-nowrap text-center ${fieldWidthClass(f)}">${it[f.key] || '-'}</td>`; });
       } else {
-        cells += `<td class="p-2 text-gray-500 whitespace-pre-wrap max-w-[160px] text-center">${it.sizeNote || '-'}</td>`;
+        cells += `<td class="p-2 text-gray-500 whitespace-pre-wrap text-center w-40">${it.sizeNote || '-'}</td>`;
       }
       tr.innerHTML = cells;
       tr.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
