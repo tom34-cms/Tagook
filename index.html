@@ -47,6 +47,8 @@ const firebaseConfig = {
 };
 let db = null;
 let outsideClickHandler = null;
+let lastRenderedTab = null;
+const tabScrollPositions = { calendar:0, gallery:0, search:0 };
 let firebaseReady = false;
 try{
   if(firebaseConfig.apiKey !== "YOUR_API_KEY" && typeof firebase !== 'undefined'){
@@ -134,6 +136,7 @@ const state = {
   searchSort: 'recent',        // recent | purchase | price
   searchSortDir: 'desc',       // asc | desc (구매일/구매가 정렬 방향, 누를 때마다 토글)
   searchQuery: '',              // ITEM 탭 상단 검색창 (브랜드/제품명 접두어 검색)
+  searchOwn: 'all',             // all | own | past (보유여부 필터: 구매일/구매가 정렬 버튼 앞에 표시)
   compareCat: null,            // 사이즈 비교에서 선택된 대분류
   compareSubCat: null,          // 사이즈 비교에서 선택된 소분류 (null이면 전체)
 
@@ -142,6 +145,7 @@ const state = {
   fullscreenPhoto: null,        // 전체화면으로 보고 있는 사진 URL (null이면 안 보임)
   coordiFilterCat: 'all',      // 코디 상세에서 아이템 목록 카테고리 필터
   itemBriefId: null,
+  itemFreqOutfitsId: null,
   itemFullId: null,
   categoryPopupOpen: false,
   sizePopupOpen: false,
@@ -154,7 +158,8 @@ const state = {
   pickerSearch: '',
 
   storageMode: 'none',
-  syncCode: null
+  syncCode: null,
+  photoCache: {}                // id -> 원본 photo dataURL (상세화면 열 때만 채워지는 캐시)
 };
 try{ state.syncCode = localStorage.getItem('tagbook-sync-code'); }catch(e){ state.syncCode = null; }
 
@@ -282,17 +287,82 @@ function removeFromLocalIndex(key, id){
   localStorage.setItem(key, JSON.stringify(readLocalIndex(key).filter(x=>x!==id)));
 }
 
-async function saveOutfitRecord(outfit){
+// 원본 사진(photo)은 목록 문서와 분리해서 저장한다.
+// - firebase: tagbook/{syncCode}/outfitPhotos 또는 itemPhotos 서브컬렉션에 {photo} 하나만 담아 별도 저장
+// - cloud/local: 별도 키(outfitPhoto:/itemPhoto: 접두사)로 저장
+// 이렇게 하면 loadState()가 앱을 켤 때 받아오는 건 photoThumb뿐이라, 사진이 아무리 쌓여도 첫 로딩이 크게 늘지 않는다.
+function photoCollName(type){ return type === 'outfit' ? 'outfitPhotos' : 'itemPhotos'; }
+function photoKeyPrefix(type){ return type === 'outfit' ? 'outfitPhoto:' : 'itemPhoto:'; }
+function photoLocalPrefix(type){ return type === 'outfit' ? 'tagbook-outfitPhoto-' : 'tagbook-itemPhoto-'; }
+
+async function savePhoto(type, id, dataURL){
+  if(!dataURL) return;
   if(state.storageMode === 'firebase'){
-    try{ await db.collection('tagbook').doc(state.syncCode).collection('outfits').doc(outfit.id).set(outfit); }
-    catch(e){ console.error('코디 저장 실패:', e); alert('코디 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
+    await db.collection('tagbook').doc(state.syncCode).collection(photoCollName(type)).doc(id).set({ photo: dataURL });
   } else if(state.storageMode === 'cloud'){
-    try{ await window.storage.set('outfit:'+outfit.id, JSON.stringify(outfit), false); }
-    catch(e){ console.error('코디 저장 실패:', e); alert('코디 저장에 실패했어요. 잠시 후 다시 시도해주세요.'); }
+    await window.storage.set(photoKeyPrefix(type)+id, dataURL, false);
   } else if(state.storageMode === 'local'){
-    try{ localStorage.setItem('tagbook-outfit-'+outfit.id, JSON.stringify(outfit)); addToLocalIndex('tagbook-outfit-ids', outfit.id); }
-    catch(e){ console.error('코디 저장 실패:', e); alert('저장에 실패했어요. 브라우저 저장 공간이 가득 찼을 수 있어요.'); }
+    localStorage.setItem(photoLocalPrefix(type)+id, dataURL);
   }
+}
+async function deletePhoto(type, id){
+  try{
+    if(state.storageMode === 'firebase'){
+      await db.collection('tagbook').doc(state.syncCode).collection(photoCollName(type)).doc(id).delete();
+    } else if(state.storageMode === 'cloud'){
+      await window.storage.delete(photoKeyPrefix(type)+id, false);
+    } else if(state.storageMode === 'local'){
+      localStorage.removeItem(photoLocalPrefix(type)+id);
+    }
+  }catch(e){ console.error('원본 사진 삭제 실패:', type, id, e); }
+}
+// 원본 사진 1장을 필요할 때만 불러와 photoCache에 담고 화면을 갱신한다.
+// 상세 화면(코디 상세/아이템 상세/수정 폼)을 열 때 호출한다. 이미 캐시에 있으면 아무것도 안 함.
+async function ensurePhotoLoaded(type, id){
+  if(!id || state.photoCache[id]) return;
+  try{
+    let dataURL = null;
+    if(state.storageMode === 'firebase'){
+      const doc = await db.collection('tagbook').doc(state.syncCode).collection(photoCollName(type)).doc(id).get();
+      if(doc.exists) dataURL = doc.data().photo;
+    } else if(state.storageMode === 'cloud'){
+      const r = await window.storage.get(photoKeyPrefix(type)+id, false);
+      if(r && r.value) dataURL = r.value;
+    } else if(state.storageMode === 'local'){
+      dataURL = localStorage.getItem(photoLocalPrefix(type)+id);
+    }
+    if(dataURL){ state.photoCache[id] = dataURL; render(); }
+  }catch(e){ console.error('원본 사진 로드 실패:', type, id, e); }
+}
+// 그리기 시점에 쓸 원본 URL: 방금 업로드해서 메모리에 있는 값 > 캐시된 값 > (아직 없으면) 썸네일로 대체하고 백그라운드 로드 시작
+function fullPhotoOf(type, rec){
+  if(!rec) return '';
+  if(rec.photo) return rec.photo; // 방금 업로드/수정 중이라 메모리에 원본이 있는 경우
+  if(state.photoCache[rec.id]) return state.photoCache[rec.id];
+  ensurePhotoLoaded(type, rec.id);
+  return rec.photoThumb || '';
+}
+
+async function saveOutfitRecord(outfit){
+  const photo = outfit.photo;
+  const listDoc = { ...outfit }; delete listDoc.photo; // 목록 문서에는 원본을 넣지 않는다
+  if(state.storageMode === 'firebase'){
+    try{
+      await db.collection('tagbook').doc(state.syncCode).collection('outfits').doc(outfit.id).set(listDoc);
+      if(photo) await savePhoto('outfit', outfit.id, photo);
+    }catch(e){ console.error('코디 저장 실패:', e); alert('코디 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
+  } else if(state.storageMode === 'cloud'){
+    try{
+      await window.storage.set('outfit:'+outfit.id, JSON.stringify(listDoc), false);
+      if(photo) await savePhoto('outfit', outfit.id, photo);
+    }catch(e){ console.error('코디 저장 실패:', e); alert('코디 저장에 실패했어요. 잠시 후 다시 시도해주세요.'); }
+  } else if(state.storageMode === 'local'){
+    try{
+      localStorage.setItem('tagbook-outfit-'+outfit.id, JSON.stringify(listDoc)); addToLocalIndex('tagbook-outfit-ids', outfit.id);
+      if(photo) await savePhoto('outfit', outfit.id, photo);
+    }catch(e){ console.error('코디 저장 실패:', e); alert('저장에 실패했어요. 브라우저 저장 공간이 가득 찼을 수 있어요.'); }
+  }
+  if(photo) state.photoCache[outfit.id] = photo; // 방금 저장한 원본은 바로 캐시에 반영해서 재요청 안 하게
 }
 async function deleteOutfitRecord(id){
   if(state.storageMode === 'firebase'){
@@ -304,18 +374,29 @@ async function deleteOutfitRecord(id){
     try{ localStorage.removeItem('tagbook-outfit-'+id); removeFromLocalIndex('tagbook-outfit-ids', id); }
     catch(e){ console.error('코디 삭제 실패:', e); }
   }
+  delete state.photoCache[id];
+  await deletePhoto('outfit', id);
 }
 async function saveItemRecord(item){
+  const photo = item.photo;
+  const listDoc = { ...item }; delete listDoc.photo;
   if(state.storageMode === 'firebase'){
-    try{ await db.collection('tagbook').doc(state.syncCode).collection('items').doc(item.id).set(item); }
-    catch(e){ console.error('아이템 저장 실패:', e); alert('아이템 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
+    try{
+      await db.collection('tagbook').doc(state.syncCode).collection('items').doc(item.id).set(listDoc);
+      if(photo) await savePhoto('item', item.id, photo);
+    }catch(e){ console.error('아이템 저장 실패:', e); alert('아이템 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); }
   } else if(state.storageMode === 'cloud'){
-    try{ await window.storage.set('item:'+item.id, JSON.stringify(item), false); }
-    catch(e){ console.error('아이템 저장 실패:', e); alert('아이템 저장에 실패했어요. 잠시 후 다시 시도해주세요.'); }
+    try{
+      await window.storage.set('item:'+item.id, JSON.stringify(listDoc), false);
+      if(photo) await savePhoto('item', item.id, photo);
+    }catch(e){ console.error('아이템 저장 실패:', e); alert('아이템 저장에 실패했어요. 잠시 후 다시 시도해주세요.'); }
   } else if(state.storageMode === 'local'){
-    try{ localStorage.setItem('tagbook-item-'+item.id, JSON.stringify(item)); addToLocalIndex('tagbook-item-ids', item.id); }
-    catch(e){ console.error('아이템 저장 실패:', e); alert('저장에 실패했어요. 브라우저 저장 공간이 가득 찼을 수 있어요.'); }
+    try{
+      localStorage.setItem('tagbook-item-'+item.id, JSON.stringify(listDoc)); addToLocalIndex('tagbook-item-ids', item.id);
+      if(photo) await savePhoto('item', item.id, photo);
+    }catch(e){ console.error('아이템 저장 실패:', e); alert('저장에 실패했어요. 브라우저 저장 공간이 가득 찼을 수 있어요.'); }
   }
+  if(photo) state.photoCache[item.id] = photo;
 }
 async function deleteItemRecord(id){
   if(state.storageMode === 'firebase'){
@@ -327,35 +408,29 @@ async function deleteItemRecord(id){
     try{ localStorage.removeItem('tagbook-item-'+id); removeFromLocalIndex('tagbook-item-ids', id); }
     catch(e){ console.error('아이템 삭제 실패:', e); }
   }
+  delete state.photoCache[id];
+  await deletePhoto('item', id);
 }
 
-// photoThumb 없이 저장된 예전 코디/아이템을 위한 1회성 백그라운드 마이그레이션.
-// 원본 photo는 절대 건드리지 않고, 목록/그리드 표시용 작은 사본(photoThumb)만 추가로 만들어 재저장한다.
-// render()를 막지 않도록 loadState() 이후 별도로(await 없이) 실행한다.
-async function migrateMissingThumbs(){
+// 예전 방식대로 문서 안에 원본(photo)이 통째로 박혀있는 코디/아이템을 찾아서
+// 1) photoThumb이 없으면 만들고 2) saveOutfitRecord/saveItemRecord를 다시 호출해
+//    원본은 별도 위치로 옮기고 목록 문서에서는 photo를 뺀 채로 재저장한다.
+// 원본은 삭제되는 게 아니라 위치만 옮겨지는 것이라 데이터 유실 없음.
+async function migrateLegacyPhotoStorage(){
   const targets = [
-    ...state.outfits.filter(o=>o.photo && !o.photoThumb).map(rec=>({type:'outfit', rec})),
-    ...state.items.filter(it=>it.photo && !it.photoThumb).map(rec=>({type:'item', rec}))
+    ...state.outfits.filter(o=>o.photo).map(rec=>({type:'outfit', rec})),
+    ...state.items.filter(it=>it.photo).map(rec=>({type:'item', rec}))
   ];
   if(targets.length===0) return;
   let migrated = 0;
   for(const t of targets){
     try{
-      const thumb = await makeThumbFromDataURL(t.rec.photo);
-      t.rec.photoThumb = thumb;
-      if(state.storageMode === 'firebase'){
-        const parentRef = db.collection('tagbook').doc(state.syncCode);
-        const coll = t.type === 'outfit' ? 'outfits' : 'items';
-        await parentRef.collection(coll).doc(t.rec.id).update({ photoThumb: thumb });
-      } else if(state.storageMode === 'cloud'){
-        const key = (t.type==='outfit' ? 'outfit:' : 'item:') + t.rec.id;
-        await window.storage.set(key, JSON.stringify(t.rec), false);
-      } else if(state.storageMode === 'local'){
-        localStorage.setItem('tagbook-'+t.type+'-'+t.rec.id, JSON.stringify(t.rec));
-      }
+      if(!t.rec.photoThumb) t.rec.photoThumb = await makeThumbFromDataURL(t.rec.photo);
+      if(t.type === 'outfit') await saveOutfitRecord(t.rec);
+      else await saveItemRecord(t.rec);
       migrated++;
       if(migrated % 5 === 0) render(); // 진행 중에도 화면이 조금씩 가벼워지는 걸 체감할 수 있게 주기적으로 갱신
-    }catch(e){ console.error('썸네일 마이그레이션 실패:', t.type, t.rec.id, e); }
+    }catch(e){ console.error('사진 구조 마이그레이션 실패:', t.type, t.rec.id, e); }
   }
   render();
 }
@@ -465,10 +540,17 @@ function sizeSortKey(it, main){
   const label = (it.sizeLabel||'').trim();
   if(!label) return null;
   if(main === '신발'){
+    // 괄호 안에 mm가 명시돼 있으면(예: 'UK8(270)') 그 값을 그대로 사용
     const paren = label.match(/\(([\d.]+)\)/);
     if(paren) return parseFloat(paren[1]);
     const num = label.match(/([\d.]+)/);
-    if(num) return parseFloat(num[1]);
+    if(num){
+      const n = parseFloat(num[1]);
+      if(n >= 150) return n; // 이미 mm(실측) 값으로 보임 → 그대로 사용
+      // EU/US처럼 작은 숫자만 적힌 경우: EU 사이즈로 보고 mm로 환산해서 정렬
+      // (EU43 ≈ 280mm를 기준으로 1사이즈당 약 10mm 차이로 근사)
+      return 280 + (n - 43) * 10;
+    }
     return null;
   }
   const upper = label.toUpperCase().replace(/\s/g,'');
@@ -502,6 +584,11 @@ function render(){
     focusInfo = { id: activeEl.id, start: activeEl.selectionStart, end: activeEl.selectionEnd };
   }
 
+  // 재렌더링(innerHTML 초기화)으로 스크롤이 맨 위로 튕기는 것을 막기 위해,
+  // 지우기 전 현재 탭의 스크롤 위치를 저장해두고 다시 그린 뒤 그대로 복원한다.
+  const prevMain = document.getElementById('tab-main');
+  if(prevMain && lastRenderedTab){ tabScrollPositions[lastRenderedTab] = prevMain.scrollTop; }
+
   app.innerHTML = '';
 
   if(outsideClickHandler){ document.removeEventListener('click', outsideClickHandler); outsideClickHandler = null; }
@@ -519,10 +606,15 @@ function render(){
   shell.appendChild(renderBottomNav());
   app.appendChild(shell);
 
+  lastRenderedTab = state.tab;
+  const newMain = document.getElementById('tab-main');
+  if(newMain) newMain.scrollTop = tabScrollPositions[state.tab] || 0;
+
   if(state.registerDraft) app.appendChild(renderOutfitRegisterView());
   if(state.itemFlow) app.appendChild(renderItemFlowModal());
   if(state.coordiDetailId) app.appendChild(renderCoordiDetailModal());
   if(state.itemBriefId) app.appendChild(renderItemBriefSheet());
+  if(state.itemFreqOutfitsId) app.appendChild(renderItemFreqOutfitsSheet());
   if(state.itemFullId) app.appendChild(renderItemFullModal());
   if(state.categoryPopupOpen) app.appendChild(renderCategoryPopup());
   if(state.sizePopupOpen) app.appendChild(renderSizePopup());
@@ -652,6 +744,7 @@ function renderMonthPickerPanel(){
    ============================================================ */
 function renderMain(){
   const main = document.createElement('main');
+  main.id = 'tab-main';
   main.className = 'flex-1 overflow-y-auto custom-scroll p-4 pb-24';
   if(state.tab === 'calendar') main.appendChild(renderCalendarTab());
   else if(state.tab === 'gallery') main.appendChild(renderGalleryTab());
@@ -788,7 +881,27 @@ function renderItemGridCard(it){
   return c;
 }
 
-// 구매일/구매가 정렬 토글 버튼 행 (전체·카테고리 화면 공통 사용)
+// 보유여부(전체/보유중/처분함) 필터 적용
+function filterByOwn(list){
+  if(state.searchOwn === 'own') return list.filter(it=>it.owned!==false);
+  if(state.searchOwn === 'past') return list.filter(it=>it.owned===false);
+  return list;
+}
+// 구매일/구매가 정렬 버튼 앞에 붙는 전체/보유중/처분함 필터 버튼 3개
+function buildOwnFilterRow(){
+  const row = document.createElement('div');
+  row.className = 'flex gap-1.5 shrink-0';
+  const opts = [['all','전체'],['own','보유중'],['past','처분함']];
+  row.innerHTML = opts.map(([key,label])=>{
+    const active = state.searchOwn===key;
+    return `<button data-ownkey="${key}" class="own-filter-btn px-2.5 py-1 rounded-full text-[11px] font-bold ${active?'bg-gray-900 text-white':'bg-gray-100 text-gray-500'}">${label}</button>`;
+  }).join('');
+  row.querySelectorAll('.own-filter-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{ state.searchOwn = b.dataset.ownkey; render(); });
+  });
+  return row;
+}
+// 구매일/구매가 정렬 버튼 (buildSortRow) 함수
 function buildSortRow(){
   const sortRow = document.createElement('div');
   sortRow.className = 'flex gap-2 shrink-0';
@@ -867,14 +980,18 @@ function renderSearchTab(){
 
   if(filter === '전체'){
     // 필터 드롭다운의 '전체': 개수만 표시 (총 구매가는 표시하지 않음)
-    let list = state.items.slice();
+    let list = filterByOwn(state.items.slice());
     list = sortItems(list, state.searchSort, state.searchSortDir);
 
     const totalCount = list.length;
     const topRow = document.createElement('div');
-    topRow.className = 'flex items-center justify-between gap-2';
+    topRow.className = 'flex items-start justify-between gap-2 flex-wrap';
     topRow.innerHTML = `<span class="text-xs text-gray-400 font-semibold">전체 총 ${totalCount}개</span>`;
-    topRow.appendChild(buildSortRow());
+    const rightBtns = document.createElement('div');
+    rightBtns.className = 'flex flex-col items-end gap-1.5';
+    rightBtns.appendChild(buildOwnFilterRow());
+    rightBtns.appendChild(buildSortRow());
+    topRow.appendChild(rightBtns);
     area.appendChild(topRow);
 
     const grid = document.createElement('div');
@@ -883,18 +1000,22 @@ function renderSearchTab(){
     area.appendChild(grid);
   } else if(filter === '카테고리' && state.searchCat === 'all'){
     // 카테고리 팝업에서 '전체' 선택: 다른 카테고리처럼 총 개수 + 총 구매가 + 정렬 표시
-    let list = state.items.slice();
+    let list = filterByOwn(state.items.slice());
     list = sortItems(list, state.searchSort, state.searchSortDir);
 
     const totalCount = list.length;
     const totalPrice = list.reduce((s,it)=> s + (Number(it.price)||0), 0);
     const topRow = document.createElement('div');
-    topRow.className = 'flex items-start justify-between gap-2';
+    topRow.className = 'flex items-start justify-between gap-2 flex-wrap';
     const totalLabel = document.createElement('div');
     totalLabel.className = 'flex items-center gap-2 flex-wrap';
     totalLabel.innerHTML = `<span class="text-xs text-gray-400 font-semibold">전체 총 ${totalCount}개</span><span class="text-xs text-red-500 font-bold">총 구매가 ${totalPrice.toLocaleString('ko-KR')}원</span>`;
     topRow.appendChild(totalLabel);
-    topRow.appendChild(buildSortRow());
+    const rightBtns = document.createElement('div');
+    rightBtns.className = 'flex flex-col items-end gap-1.5';
+    rightBtns.appendChild(buildOwnFilterRow());
+    rightBtns.appendChild(buildSortRow());
+    topRow.appendChild(rightBtns);
     area.appendChild(topRow);
 
     const grid = document.createElement('div');
@@ -902,58 +1023,42 @@ function renderSearchTab(){
     list.forEach(it=> grid.appendChild(renderItemGridCard(it)));
     area.appendChild(grid);
   } else if(filter === '카테고리'){
-    // 대분류를 골랐으면 소분류 섹션별로 가로 스크롤 카드 나열
+    // 대분류를 골랐으면 소분류 섹션별로 3열 그리드로 나열
     const main = state.searchCat;
     const box = document.createElement('div');
     box.className = 'space-y-6';
 
-    const totalCount = state.items.filter(it=>it.category===main).length;
-    const totalPrice = state.items.filter(it=>it.category===main).reduce((s,it)=> s + (Number(it.price)||0), 0);
+    const catItemsAll = state.items.filter(it=>it.category===main);
+    const catItems = filterByOwn(catItemsAll);
+    const totalCount = catItems.length;
+    const totalPrice = catItems.reduce((s,it)=> s + (Number(it.price)||0), 0);
     const topRow = document.createElement('div');
-    topRow.className = 'flex items-start justify-between gap-2';
+    topRow.className = 'flex items-start justify-between gap-2 flex-wrap';
 
     const totalLabel = document.createElement('div');
     totalLabel.className = 'flex items-center gap-2 flex-wrap';
     totalLabel.innerHTML = `<span class="text-xs text-gray-400 font-semibold">${main} 총 ${totalCount}개</span><span class="text-xs text-red-500 font-bold">총 구매가 ${totalPrice.toLocaleString('ko-KR')}원</span>`;
     topRow.appendChild(totalLabel);
 
-    const sortRow = document.createElement('div');
-    sortRow.className = 'flex gap-2 shrink-0';
-    function sortBtnHTML(key,label){
-      const active = state.searchSort===key;
-      const arrow = active ? (state.searchSortDir==='asc' ? '▲' : '▼') : '';
-      return `<button data-sortkey="${key}" class="cat-sort-btn px-3 py-1 rounded-full text-[11px] font-bold ${active?'bg-gray-900 text-white':'bg-gray-100 text-gray-500'}">${label} ${arrow}</button>`;
-    }
-    sortRow.innerHTML = sortBtnHTML('purchase','구매일') + sortBtnHTML('price','구매가');
-    topRow.appendChild(sortRow);
+    const rightBtns = document.createElement('div');
+    rightBtns.className = 'flex flex-col items-end gap-1.5';
+    rightBtns.appendChild(buildOwnFilterRow());
+    rightBtns.appendChild(buildSortRow());
+    topRow.appendChild(rightBtns);
     box.appendChild(topRow);
-    sortRow.querySelectorAll('.cat-sort-btn').forEach(b=>{
-      b.addEventListener('click', ()=>{
-        const key = b.dataset.sortkey;
-        if(state.searchSort === key){ state.searchSortDir = state.searchSortDir === 'asc' ? 'desc' : 'asc'; }
-        else { state.searchSort = key; state.searchSortDir = 'desc'; }
-        render();
-      });
-    });
 
     const subs = CAT_SUB[main] || [];
     let any = false;
     subs.forEach(sub=>{
-      const its = sortItems(state.items.filter(it=>it.category===main && it.subCategory===sub), state.searchSort, state.searchSortDir);
+      const its = sortItems(filterByOwn(state.items.filter(it=>it.category===main && it.subCategory===sub)), state.searchSort, state.searchSortDir);
       if(its.length===0) return;
       any = true;
       const row = document.createElement('div');
       row.innerHTML = `<h3 class="font-bold text-sm mb-2 text-gray-950">${sub} <span class="text-gray-400 font-normal">아이템 ${its.length}개</span></h3>`;
-      const scroll = document.createElement('div');
-      scroll.className = 'flex gap-3 overflow-x-auto custom-scroll pb-2';
-      its.forEach(it=>{
-        const card = document.createElement('div');
-        card.className = 'w-32 flex-shrink-0 bg-white p-2 rounded-2xl border border-gray-100 cursor-pointer';
-        card.innerHTML = `<img src="${it.photoThumb||it.photo}" style="aspect-ratio:${ITEM_PHOTO_ASPECT}" class="w-full object-cover rounded-lg" /><p class="text-xs font-bold truncate mt-1">${it.brand || '브랜드 미상'}</p><p class="text-[10px] text-gray-400 truncate">${it.name || ''}</p>`;
-        card.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
-        scroll.appendChild(card);
-      });
-      row.appendChild(scroll);
+      const grid = document.createElement('div');
+      grid.className = 'grid grid-cols-3 gap-2';
+      its.forEach(it=> grid.appendChild(renderItemGridCard(it)));
+      row.appendChild(grid);
       box.appendChild(row);
     });
     if(!any){
@@ -965,7 +1070,7 @@ function renderSearchTab(){
     area.appendChild(box);
   } else if(filter === '브랜드'){
     const groups = new Map();
-    state.items.forEach(it=>{
+    filterByOwn(state.items).forEach(it=>{
       const key = (it.brand && it.brand.trim()) ? it.brand.trim() : '브랜드 미상';
       if(!groups.has(key)) groups.set(key, []);
       groups.get(key).push(it);
@@ -977,6 +1082,16 @@ function renderSearchTab(){
     });
     const box = document.createElement('div');
     box.className = 'space-y-6';
+    const topRow = document.createElement('div');
+    topRow.className = 'flex justify-end';
+    topRow.appendChild(buildOwnFilterRow());
+    box.appendChild(topRow);
+    if(names.length===0){
+      const empty = document.createElement('div');
+      empty.className = 'text-center py-16 text-gray-700/60 text-sm';
+      empty.textContent = '등록된 아이템이 없어요.';
+      box.appendChild(empty);
+    }
     names.forEach(brand=>{
       const its = groups.get(brand).slice().sort((a,b)=>{
         const na = (a.name || a.category || '').trim();
@@ -984,17 +1099,11 @@ function renderSearchTab(){
         return na.localeCompare(nb, 'ko');
       });
       const row = document.createElement('div');
-      row.innerHTML = `<h3 class="font-bold text-sm mb-2 text-gray-950">${brand}</h3>`;
-      const scroll = document.createElement('div');
-      scroll.className = 'flex gap-3 overflow-x-auto custom-scroll pb-2';
-      its.forEach(it=>{
-        const card = document.createElement('div');
-        card.className = 'w-32 flex-shrink-0 bg-white p-2 rounded-2xl border border-gray-100 cursor-pointer';
-        card.innerHTML = `<img src="${it.photoThumb||it.photo}" style="aspect-ratio:${ITEM_PHOTO_ASPECT}" class="w-full object-cover rounded-lg" /><p class="text-xs font-semibold truncate mt-1">${it.name || CAT_ICON[it.category]+' '+it.category}</p>`;
-        card.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
-        scroll.appendChild(card);
-      });
-      row.appendChild(scroll);
+      row.innerHTML = `<h3 class="font-bold text-sm mb-2 text-gray-950">${brand} <span class="text-gray-400 font-normal">아이템 ${its.length}개</span></h3>`;
+      const grid = document.createElement('div');
+      grid.className = 'grid grid-cols-3 gap-2';
+      its.forEach(it=> grid.appendChild(renderItemGridCard(it)));
+      row.appendChild(grid);
       box.appendChild(row);
     });
     area.appendChild(box);
@@ -1011,18 +1120,19 @@ function renderSearchTab(){
     box.innerHTML = `<p class="text-[10px] text-gray-400 font-bold mb-2 tracking-wide">BEST ITEM</p>`;
     list.forEach(it=>{
       const row = document.createElement('div');
-      row.className = 'bg-white p-3 rounded-2xl border border-gray-100 flex items-center justify-between gap-3 cursor-pointer';
+      row.className = 'bg-white p-3 rounded-2xl border border-gray-100 flex items-center justify-between gap-3';
       row.innerHTML = `
-        <div class="flex items-center gap-3 min-w-0 flex-1">
+        <div class="flex items-center gap-3 min-w-0 flex-1 cursor-pointer" id="freq-item-info">
           <img src="${it.photoThumb||it.photo}" style="aspect-ratio:${SQUARE_ASPECT}" class="w-12 flex-shrink-0 object-cover rounded-lg" />
           <div class="min-w-0 flex-1">
             <p class="text-xs font-bold truncate">${it.brand || '브랜드 미상'}</p>
             <p class="text-[10px] text-gray-400 truncate">${it.name || CAT_ICON[it.category]+' '+it.category}</p>
           </div>
         </div>
-        <span class="text-xs font-bold text-gray-900 flex-shrink-0">${outfitsUsingItem(it.id)}회</span>
+        <span class="text-xs font-bold text-gray-900 flex-shrink-0 cursor-pointer px-2 py-1 -mr-2" id="freq-count">${outfitsUsingItem(it.id)}회</span>
       `;
-      row.addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
+      row.querySelector('#freq-item-info').addEventListener('click', ()=>{ state.itemFullId = it.id; render(); });
+      row.querySelector('#freq-count').addEventListener('click', ()=>{ state.itemFreqOutfitsId = it.id; render(); });
       box.appendChild(row);
     });
     area.appendChild(box);
@@ -1030,6 +1140,43 @@ function renderSearchTab(){
     area.appendChild(renderSizeCompare());
   }
   return wrap;
+}
+
+// 착장빈도의 'n회'를 눌렀을 때 - 그 아이템을 착용한 코디들을 시트로 보여줌
+function renderItemFreqOutfitsSheet(){
+  const it = state.items.find(x=>x.id===state.itemFreqOutfitsId);
+  const bg = document.createElement('div');
+  bg.className = 'fixed inset-0 bg-black/40 z-50 flex justify-end flex-col fade-enter';
+  if(!it){ state.itemFreqOutfitsId = null; return bg; }
+  const outfits = state.outfits.filter(o=>o.itemIds.includes(it.id)).sort((a,b)=> b.date.localeCompare(a.date));
+  const sheet = document.createElement('div');
+  sheet.className = 'bg-white rounded-t-3xl p-6 space-y-4 sheet-enter max-h-[80vh] overflow-y-auto';
+  sheet.innerHTML = `
+    <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto"></div>
+    <div class="flex items-center gap-2">
+      <h3 class="font-bold text-base">${it.brand || '브랜드 미상'} 착장 기록 <span class="text-gray-400 font-normal text-xs">${outfits.length}회</span></h3>
+    </div>
+    <div class="grid grid-cols-3 gap-2" id="freq-outfit-grid"></div>
+    <button id="close-freq-outfits" class="w-full py-2 text-xs text-gray-400">닫기</button>
+  `;
+  bg.appendChild(sheet);
+  const grid = sheet.querySelector('#freq-outfit-grid');
+  outfits.forEach(o=>{
+    const card = document.createElement('div');
+    card.className = 'relative rounded-xl overflow-hidden cursor-pointer bg-gray-100';
+    card.style.aspectRatio = SQUARE_ASPECT;
+    card.innerHTML = `
+      <img src="${o.photoThumb||o.photo}" class="absolute inset-0 w-full h-full object-cover" />
+      <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent pt-4 pb-1 px-1.5">
+        <p class="text-[9px] font-semibold text-white truncate">${fmtDate(o.date)}</p>
+      </div>
+    `;
+    card.addEventListener('click', ()=>{ state.itemFreqOutfitsId = null; state.coordiDetailId = o.id; render(); });
+    grid.appendChild(card);
+  });
+  bg.addEventListener('click', e=>{ if(e.target===bg){ state.itemFreqOutfitsId=null; render(); } });
+  sheet.querySelector('#close-freq-outfits').addEventListener('click', ()=>{ state.itemFreqOutfitsId=null; render(); });
+  return bg;
 }
 
 /* ---------- 사이즈 비교: 팝업에서 대분류→소분류를 먼저 고르고, 결과 화면엔 선택된 항목만 표시 ---------- */
@@ -1285,7 +1432,7 @@ function renderCoordiDetailModal(){
       </div>
     </div>
     <div class="p-4 space-y-4">
-      <img id="coordi-photo" src="${o.photo}" class="w-full h-96 object-cover rounded-3xl shadow-md cursor-zoom-in" />
+      <img id="coordi-photo" src="${fullPhotoOf('outfit', o)}" class="w-full h-96 object-cover rounded-3xl shadow-md cursor-zoom-in" />
       ${o.location ? `<div class="flex items-center gap-1.5 text-sm text-gray-700"><img src="${PIN_ICON}" class="w-3.5 h-3.5"/><span>${o.location}</span></div>` : ''}
       <div>
         <label class="text-xs font-bold text-gray-800">아이템 (${items.length}개)</label>
@@ -1317,9 +1464,9 @@ function renderCoordiDetailModal(){
     list.appendChild(card);
   });
   bg.querySelector('#close-coordi').addEventListener('click', ()=>{ state.coordiDetailId=null; render(); });
-  bg.querySelector('#coordi-photo').addEventListener('click', ()=>{ state.fullscreenPhoto = o.photo; render(); });
+  bg.querySelector('#coordi-photo').addEventListener('click', ()=>{ state.fullscreenPhoto = fullPhotoOf('outfit', o); render(); });
   bg.querySelector('#edit-coordi').addEventListener('click', ()=>{
-    state.registerDraft = { date: o.date, location: o.location || '', photo: o.photo, photoThumb: o.photoThumb||null, itemIds: [...o.itemIds], editId: o.id };
+    state.registerDraft = { date: o.date, location: o.location || '', photo: o.photo || null, photoThumb: o.photoThumb||null, itemIds: [...o.itemIds], editId: o.id };
     state.coordiDetailId = null;
     render();
   });
@@ -1399,7 +1546,7 @@ function renderItemFullModal(){
       </div>
     </div>
     <div class="p-6 space-y-6">
-      <img src="${it.photo}" class="w-full h-64 object-contain rounded-2xl bg-white p-4 border border-gray-100" />
+      <img src="${fullPhotoOf('item', it)}" class="w-full h-64 object-contain rounded-2xl bg-white p-4 border border-gray-100" />
       <div class="flex justify-between items-center">
         <div>
           <span class="text-xs text-gray-700 font-bold">${(it.brand||'브랜드 미상').toUpperCase()}</span>
@@ -1468,7 +1615,7 @@ function renderOutfitRegisterView(){
     </div>
     <div class="p-4 space-y-4">
       <div id="outfit-photo-drop" class="border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/40 flex flex-col items-center justify-center text-center p-6 cursor-pointer min-h-[220px] overflow-hidden relative">
-        ${d.photo ? `<img src="${d.photo}" class="absolute inset-0 w-full h-full object-cover rounded-2xl"/>` : `<div class="text-2xl mb-1">📷</div><p class="text-sm text-gray-800">코디 전체 사진</p><p class="text-xs text-gray-500 mt-1">클릭해서 업로드</p>`}
+        ${(d.photo||d.photoThumb) ? `<img src="${d.photo||d.photoThumb}" class="absolute inset-0 w-full h-full object-cover rounded-2xl"/>` : `<div class="text-2xl mb-1">📷</div><p class="text-sm text-gray-800">코디 전체 사진</p><p class="text-xs text-gray-500 mt-1">클릭해서 업로드</p>`}
         <input type="file" accept="image/*" id="outfit-photo-input"/>
       </div>
       <div class="flex gap-3">
@@ -1530,7 +1677,7 @@ function renderOutfitRegisterView(){
     render();
   });
   bg.querySelector('#save-outfit').addEventListener('click', ()=>{
-    if(!d.photo){ alert('코디 전체 사진을 업로드해주세요.'); return; }
+    if(!d.photo && !d.photoThumb){ alert('코디 전체 사진을 업로드해주세요.'); return; }
     if(!d.date){ alert('날짜를 선택해주세요.'); return; }
 
     if(d.editId){
@@ -1699,7 +1846,7 @@ function renderItemFlowModal(){
       <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto"></div>
       <h3 class="font-bold text-lg">${isEdit ? '아이템 수정' : '새 아이템 등록'}</h3>
       <div id="item-photo-drop" class="border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/40 flex flex-col items-center justify-center text-center min-h-[110px] overflow-hidden relative cursor-pointer">
-        ${f.photo ? `<img src="${f.photo}" class="absolute inset-0 w-full h-full object-cover"/>` : `<div class="text-xl">🏷️</div><p class="text-xs text-gray-600 mt-1">아이템 사진 업로드</p>`}
+        ${(f.photo||f.photoThumb) ? `<img src="${f.photo||f.photoThumb}" class="absolute inset-0 w-full h-full object-cover"/>` : `<div class="text-xl">🏷️</div><p class="text-xs text-gray-600 mt-1">아이템 사진 업로드</p>`}
         <input type="file" accept="image/*" id="item-photo-input"/>
       </div>
       <div>
@@ -1746,7 +1893,7 @@ function renderItemFlowModal(){
       else { state.itemFlow = { mode:'choice' }; render(); }
     });
     sheet.querySelector('#save-item').addEventListener('click', ()=>{
-      if(!f.photo){ alert('아이템 사진을 업로드해주세요.'); return; }
+      if(!f.photo && !f.photoThumb){ alert('아이템 사진을 업로드해주세요.'); return; }
       if(!f.brand && !f.name){ alert('브랜드 또는 제품명을 입력해주세요.'); return; }
       const payload = { category:f.category, subCategory:f.subCategory, photo:f.photo, photoThumb:f.photoThumb||null, brand:f.brand, name:f.name, modelNo:f.modelNo, purchaseDate:f.purchaseDate, price:f.price, sizeNote:f.sizeNote };
       SIZE_KEYS.forEach(k=>{ payload[k] = f[k]; });
@@ -1800,7 +1947,7 @@ function renderSyncSetup(){
     app.innerHTML = '<div class="flex items-center justify-center h-screen text-sm text-gray-700/70">불러오는 중…</div>';
     await loadState();
     render();
-    migrateMissingThumbs();
+    migrateLegacyPhotoStorage();
   });
   return wrap;
 }
@@ -1817,7 +1964,7 @@ async function init(){
   }
   await loadState();
   render();
-  migrateMissingThumbs(); // 백그라운드 실행, 화면 로딩을 막지 않음
+  migrateLegacyPhotoStorage(); // 백그라운드 실행, 화면 로딩을 막지 않음
 }
 init();
 </script>
