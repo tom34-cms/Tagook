@@ -887,18 +887,21 @@ function filterByOwn(list){
   if(state.searchOwn === 'past') return list.filter(it=>it.owned===false);
   return list;
 }
-// 구매일/구매가 정렬 버튼 앞에 붙는 전체/보유중/처분함 필터 버튼 3개
+// 보유여부 필터 버튼: 누를 때마다 ALL → OWN → PAST → ALL 순으로 순환하는 단일 버튼
 function buildOwnFilterRow(){
   const row = document.createElement('div');
-  row.className = 'flex gap-1.5 shrink-0';
-  const opts = [['all','전체'],['own','보유중'],['past','처분함']];
-  row.innerHTML = opts.map(([key,label])=>{
-    const active = state.searchOwn===key;
-    return `<button data-ownkey="${key}" class="own-filter-btn px-2.5 py-1 rounded-full text-[11px] font-bold ${active?'bg-gray-900 text-white':'bg-gray-100 text-gray-500'}">${label}</button>`;
-  }).join('');
-  row.querySelectorAll('.own-filter-btn').forEach(b=>{
-    b.addEventListener('click', ()=>{ state.searchOwn = b.dataset.ownkey; render(); });
+  row.className = 'shrink-0';
+  const order = ['all','own','past'];
+  const labelMap = { all:'ALL', own:'OWN', past:'PAST' };
+  const btn = document.createElement('button');
+  btn.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700';
+  btn.textContent = labelMap[state.searchOwn];
+  btn.addEventListener('click', ()=>{
+    const idx = order.indexOf(state.searchOwn);
+    state.searchOwn = order[(idx+1) % order.length];
+    render();
   });
+  row.appendChild(btn);
   return row;
 }
 // 구매일/구매가 정렬 버튼 (buildSortRow) 함수
