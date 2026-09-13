@@ -446,17 +446,25 @@ async function loadState(){
       ]);
       let outfits = outfitsSnap.docs.map(d=>d.data());
       let items = itemsSnap.docs.map(d=>d.data());
-      if(outfits.length===0 && items.length===0){
-        // 예전 통짜 문서가 있으면 개별 문서로 1회 이관
+
+      // 예전 방식(문서 하나에 배열 통째로 저장)으로 남아있는 코디/아이템이 있는지 항상 확인해서 합쳐준다.
+      // 서브컬렉션에 일부만 먼저 들어가 있어도("완전히 비어있지 않다"는 이유로) 나머지가 영영 방치되지 않도록,
+      // 매번 id 기준으로 빠진 것만 골라 마저 이관한다.
+      try{
         const legacy = await parentRef.get();
         if(legacy.exists){
           const data = legacy.data();
-          outfits = Array.isArray(data.outfits) ? data.outfits : [];
-          items = Array.isArray(data.items) ? data.items : [];
-          for(const o of outfits) await saveOutfitRecord(o);
-          for(const it of items) await saveItemRecord(it);
+          const legacyOutfits = Array.isArray(data.outfits) ? data.outfits : [];
+          const legacyItems = Array.isArray(data.items) ? data.items : [];
+          const knownOutfitIds = new Set(outfits.map(o=>o.id));
+          const knownItemIds = new Set(items.map(it=>it.id));
+          const strayOutfits = legacyOutfits.filter(o=>o && o.id && !knownOutfitIds.has(o.id));
+          const strayItems = legacyItems.filter(it=>it && it.id && !knownItemIds.has(it.id));
+          for(const o of strayOutfits){ await saveOutfitRecord(o); outfits.push(o); }
+          for(const it of strayItems){ await saveItemRecord(it); items.push(it); }
         }
-      }
+      }catch(e){ console.error('예전 데이터 확인 실패:', e); }
+
       state.outfits = outfits;
       state.items = items;
     }catch(e){ console.error('불러오기 실패:', e); }
@@ -477,18 +485,20 @@ async function loadState(){
       if(itemList && itemList.keys && itemList.keys.length){
         for(const k of itemList.keys){ try{ const r = await window.storage.get(k, false); if(r && r.value) items.push(JSON.parse(r.value)); }catch(e){} }
       }
-      if(outfits.length===0 && items.length===0){
-        try{
-          const legacy = await window.storage.get('tagbook-data', false);
-          if(legacy && legacy.value){
-            const parsed = JSON.parse(legacy.value);
-            outfits = Array.isArray(parsed.outfits) ? parsed.outfits : [];
-            items = Array.isArray(parsed.items) ? parsed.items : [];
-            for(const o of outfits) await saveOutfitRecord(o);
-            for(const it of items) await saveItemRecord(it);
-          }
-        }catch(e){}
-      }
+      try{
+        const legacy = await window.storage.get('tagbook-data', false);
+        if(legacy && legacy.value){
+          const parsed = JSON.parse(legacy.value);
+          const legacyOutfits = Array.isArray(parsed.outfits) ? parsed.outfits : [];
+          const legacyItems = Array.isArray(parsed.items) ? parsed.items : [];
+          const knownOutfitIds = new Set(outfits.map(o=>o.id));
+          const knownItemIds = new Set(items.map(it=>it.id));
+          const strayOutfits = legacyOutfits.filter(o=>o && o.id && !knownOutfitIds.has(o.id));
+          const strayItems = legacyItems.filter(it=>it && it.id && !knownItemIds.has(it.id));
+          for(const o of strayOutfits){ await saveOutfitRecord(o); outfits.push(o); }
+          for(const it of strayItems){ await saveItemRecord(it); items.push(it); }
+        }
+      }catch(e){}
       state.outfits = outfits;
       state.items = items;
     }catch(e){ /* 저장된 데이터 없음 */ }
