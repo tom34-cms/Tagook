@@ -465,6 +465,36 @@ async function loadState(){
         }
       }catch(e){ console.error('예전 데이터 확인 실패:', e); }
 
+      // 연동 코드 기능이 생기기 전, 이 기기의 로컬 저장공간(localStorage)에만 남아있던
+      // 예전 코디/아이템도 확인해서 클라우드로 이관한다. (기기 연동 코드가 생기면서
+      // 로컬 데이터를 더 이상 읽지 않게 되어 방치되던 문제를 해결)
+      try{
+        let localOutfits = readLocalIndex('tagbook-outfit-ids').map(id=>{
+          try{ return JSON.parse(localStorage.getItem('tagbook-outfit-'+id)); }catch(e){ return null; }
+        }).filter(Boolean);
+        let localItems = readLocalIndex('tagbook-item-ids').map(id=>{
+          try{ return JSON.parse(localStorage.getItem('tagbook-item-'+id)); }catch(e){ return null; }
+        }).filter(Boolean);
+        if(localOutfits.length===0 && localItems.length===0){
+          const raw = localStorage.getItem('tagbook-data');
+          if(raw){
+            const parsed = JSON.parse(raw);
+            localOutfits = Array.isArray(parsed.outfits) ? parsed.outfits : [];
+            localItems = Array.isArray(parsed.items) ? parsed.items : [];
+          }
+        }
+        const knownOutfitIdsLocal = new Set(outfits.map(o=>o.id));
+        const knownItemIdsLocal = new Set(items.map(it=>it.id));
+        const strayLocalOutfits = localOutfits.filter(o=>o && o.id && !knownOutfitIdsLocal.has(o.id));
+        const strayLocalItems = localItems.filter(it=>it && it.id && !knownItemIdsLocal.has(it.id));
+        for(const o of strayLocalOutfits){ await saveOutfitRecord(o); outfits.push(o); }
+        for(const it of strayLocalItems){ await saveItemRecord(it); items.push(it); }
+        if(strayLocalOutfits.length || strayLocalItems.length){
+          console.log('로컬 예전 데이터 이관 완료:', strayLocalOutfits.length, '개 코디,', strayLocalItems.length, '개 아이템');
+          alert('이 기기에 저장돼있던 예전 데이터를 찾아서 복구했어요! (코디 '+strayLocalOutfits.length+'개, 아이템 '+strayLocalItems.length+'개)');
+        }
+      }catch(e){ console.error('로컬 예전 데이터 확인 실패:', e); }
+
       state.outfits = outfits;
       state.items = items;
     }catch(e){ console.error('불러오기 실패:', e); }
